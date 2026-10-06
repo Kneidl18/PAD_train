@@ -149,10 +149,32 @@ pad-train evaluate --help
 A feature extractor is any callable that maps a grayscale image (2-D `uint8`
 array) to a 1-D feature vector whose length does not depend on the image size.
 
-| Name       | Description                                                            |
-|------------|------------------------------------------------------------------------|
-| `fourier`  | log energy of the power spectrum in 30 concentric radial bands         |
-| `haralick` | 13 Haralick texture statistics, averaged over the four directions      |
+| Name       | Description                                                              |
+|------------|--------------------------------------------------------------------------|
+| `fourier`  | log energy of the magnitude spectrum in radial bands, thirds per dataset |
+| `haralick` | 13 Haralick texture statistics, averaged over the four directions        |
+
+### Fourier settings
+
+`fourier` uses only the magnitude of the spectrum; the phase is discarded. The
+30 bands are grouped into thirds (1 = low, 2 = middle, 3 = high frequencies),
+and each dataset uses its own selection:
+
+| Dataset | `fourier_thirds` | Bands |
+|---------|------------------|-------|
+| PLUS    | `(1, 2, 3)`      | 0–29  |
+| IDIAP   | `(1, 2)`         | 0–19  |
+| SCUT    | `(1,)`           | 0–9   |
+
+`evaluate()` and the command line apply these automatically. To change them,
+edit `fourier_thirds` in `_default_datasets()` in
+[`src/pad_train/config.py`](src/pad_train/config.py), or override them at run time:
+
+```python
+pad_train.settings.datasets["SCUT"].fourier_thirds = (1, 2)
+```
+
+### Adding an extractor
 
 Adding one takes a single decorator, in this package
 (`src/pad_train/features/`) or in your own code:

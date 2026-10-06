@@ -7,7 +7,7 @@ import pytest
 
 import pad_train
 from pad_train import Settings
-from pad_train.features import fourier_features, haralick_features
+from pad_train.features import fourier_features, haralick_features, thirds_to_bands
 
 from .conftest import N_SUBJECTS, SAMPLES_PER_SUBJECT
 
@@ -37,6 +37,26 @@ def test_fourier_band_energies_sum_to_total_power() -> None:
     spectrum = np.fft.fftshift(np.fft.fft2(image))
     # Everything but the single corner bin belongs to exactly one band.
     assert np.isclose(features.sum(), (np.abs(spectrum) ** 2).sum() - np.abs(spectrum[0, 0]) ** 2)
+
+
+def test_fourier_thirds() -> None:
+    assert thirds_to_bands([1]) == list(range(10))
+    assert thirds_to_bands([2, 1]) == list(range(20))
+    assert thirds_to_bands([1, 2, 3]) == list(range(30))
+    with pytest.raises(ValueError, match="Thirds"):
+        thirds_to_bands([4])
+
+    image = np.random.default_rng(0).integers(0, 256, size=(32, 48)).astype(np.uint8)
+    full = fourier_features(image)
+    datasets = pad_train.Settings().datasets
+    expected = {"PLUS": full, "IDIAP": full[:20], "SCUT": full[:10]}
+    for name, features in expected.items():
+        extractor = pad_train.get_extractor("fourier", datasets[name])
+        assert np.array_equal(extractor(image), features)
+    # A changed setting is picked up, and no dataset means all bands.
+    datasets["SCUT"].fourier_thirds = (3,)
+    assert np.array_equal(pad_train.get_extractor("fourier", datasets["SCUT"])(image), full[20:])
+    assert np.array_equal(pad_train.get_extractor("fourier")(image), full)
 
 
 def test_registry() -> None:

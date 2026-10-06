@@ -56,6 +56,9 @@ class DatasetConfig:
         pair_by_filename: Real and spoof captures of the same finger share a
             file name, so bona fide samples can be matched to their attack
             sample one-to-one. If ``False`` the matching is done per subject.
+        fourier_thirds: Thirds of the Fourier magnitude spectrum used by the
+            ``fourier`` extractor for this dataset: 1 = low, 2 = middle,
+            3 = high frequencies. Change them in :func:`_default_datasets`.
     """
 
     name: str
@@ -64,6 +67,7 @@ class DatasetConfig:
     subsets: tuple[str, ...] = ("",)
     n_neighbors: int = 1
     pair_by_filename: bool = False
+    fourier_thirds: tuple[int, ...] = (1, 2, 3)
 
 
 def _default_data_root() -> Path:
@@ -96,6 +100,7 @@ def _default_datasets() -> dict[str, DatasetConfig]:
             synthetic_dir="PLUS_matched",
             n_neighbors=6,
             pair_by_filename=True,
+            fourier_thirds=(1, 2, 3),
         ),
         "IDIAP": DatasetConfig(
             name="IDIAP",
@@ -104,12 +109,14 @@ def _default_datasets() -> dict[str, DatasetConfig]:
             # ``test`` is unlabelled in the archive and therefore unusable.
             subsets=("train", "dev"),
             pair_by_filename=True,
+            fourier_thirds=(1, 2),
         ),
         "SCUT": DatasetConfig(
             name="SCUT",
             real_dir="SCUT/full",
             synthetic_dir="SCUT",
             subsets=("train", "dev", "test"),
+            fourier_thirds=(1,),
         ),
     }
 

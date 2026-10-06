@@ -8,13 +8,18 @@ from typing import overload
 import numpy as np
 from numpy.typing import NDArray
 
+from pad_train.config import DatasetConfig
 from pad_train.data import Image
 
 #: A feature extractor maps one grayscale image to a 1-D feature vector. The
 #: vector length must not depend on the image size.
 FeatureExtractor = Callable[[Image], NDArray[np.float64]]
 
+#: Builds the extractor to use for one particular dataset.
+DatasetExtractorFactory = Callable[[DatasetConfig], FeatureExtractor]
+
 _REGISTRY: dict[str, FeatureExtractor] = {}
+_DATASET_FACTORIES: dict[str, DatasetExtractorFactory] = {}
 
 
 @overload
@@ -49,12 +54,31 @@ def register_extractor(
     return _register if extractor is None else _register(extractor)
 
 
-def get_extractor(name: str) -> FeatureExtractor:
+def register_dataset_extractor(name: str, factory: DatasetExtractorFactory) -> None:
+    """Make the extractor ``name`` depend on the dataset it is applied to.
+
+    Args:
+        name: Name of an extractor registered with :func:`register_extractor`.
+        factory: Builds the extractor from the dataset's configuration. It is
+            used whenever :func:`get_extractor` is given a dataset.
+    """
+    _DATASET_FACTORIES[name] = factory
+
+
+def get_extractor(name: str, dataset: DatasetConfig | None = None) -> FeatureExtractor:
     """Return the extractor registered under ``name``.
+
+    Args:
+        name: Name of the extractor.
+        dataset: Dataset the extractor will be applied to. Extractors with
+            per-dataset settings are configured accordingly; without it the
+            dataset-independent default is returned.
 
     Raises:
         KeyError: No extractor of that name is registered.
     """
+    if dataset is not None and name in _DATASET_FACTORIES:
+        return _DATASET_FACTORIES[name](dataset)
     try:
         return _REGISTRY[name]
     except KeyError:

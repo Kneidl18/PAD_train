@@ -1,4 +1,7 @@
-"""Fourier feature extraction: energy of the power spectrum in radial bands."""
+"""Fourier feature extraction: energy of the power spectrum in radial bands.
+
+Only the magnitude of the spectrum is used, the phase is discarded.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +11,11 @@ import numpy as np
 from numpy.typing import NDArray
 
 from pad_train.data import Image
-from pad_train.features.registry import FeatureExtractor, register_extractor
+from pad_train.features.registry import (
+    FeatureExtractor,
+    register_dataset_extractor,
+    register_extractor,
+)
 
 
 def _band_index(shape: tuple[int, ...], n_bands: int) -> NDArray[np.intp]:
@@ -47,6 +54,7 @@ def fourier_features(
         Feature vector with one entry per selected band.
     """
     # Centred 2-D FFT: the zero frequency sits in the middle of the spectrum.
+    # Taking the absolute value keeps the magnitude and drops the phase.
     spectrum = np.fft.fftshift(np.fft.fft2(image))
     power = np.abs(spectrum) ** 2
 
@@ -61,17 +69,48 @@ def fourier_features(
     return features if bands is None else features[list(bands)]
 
 
+def thirds_to_bands(thirds: Iterable[int], n_bands: int = 30) -> list[int]:
+    """Translate thirds of the spectrum (1 = low, 2 = middle, 3 = high) into band indices.
+
+    Raises:
+        ValueError: A third is not 1, 2 or 3, or none is given.
+    """
+    selected = sorted(set(thirds))
+    if not selected or not set(selected) <= {1, 2, 3}:
+        raise ValueError(f"Thirds must be a non-empty selection of 1, 2, 3, got {selected}")
+    size = n_bands // 3
+    # The last third also takes the remaining bands if n_bands is not divisible by 3.
+    return [
+        band
+        for third in selected
+        for band in range((third - 1) * size, n_bands if third == 3 else third * size)
+    ]
+
+
 def make_fourier_extractor(
     n_bands: int = 30,
     bands: Iterable[int] | None = None,
     log_compression: bool = True,
     normalize: bool = True,
+    thirds: Iterable[int] | None = None,
 ) -> FeatureExtractor:
     """Build a Fourier extractor with fixed parameters.
 
-    See :func:`fourier_features` for the meaning of the arguments.
+    Args:
+        n_bands: See :func:`fourier_features`.
+        bands: See :func:`fourier_features`.
+        log_compression: See :func:`fourier_features`.
+        normalize: See :func:`fourier_features`.
+        thirds: Alternative to ``bands``: thirds of the spectrum to keep, see
+            :func:`thirds_to_bands`.
+
+    Raises:
+        ValueError: Both ``bands`` and ``thirds`` are given.
     """
-    selected = None if bands is None else list(bands)
+    if bands is not None and thirds is not None:
+        raise ValueError("Pass either 'bands' or 'thirds', not both")
+    selected = thirds_to_bands(thirds, n_bands) if thirds is not None else bands
+    selected = None if selected is None else list(selected)
 
     def extractor(image: Image) -> NDArray[np.float64]:
         return fourier_features(image, n_bands, selected, log_compression, normalize)
@@ -79,4 +118,6 @@ def make_fourier_extractor(
     return extractor
 
 
+# Without a dataset all bands are used; with one, its configured thirds.
 register_extractor("fourier", make_fourier_extractor())
+register_dataset_extractor("fourier", lambda ds: make_fourier_extractor(thirds=ds.fourier_thirds))
