@@ -57,11 +57,11 @@ you need access to it:
 ```bash
 # SSH (needs an SSH key registered with GitHub)
 pip install "git+ssh://git@github.com/Kneidl18/PAD_train.git"          # latest main
-pip install "git+ssh://git@github.com/Kneidl18/PAD_train.git@0.0.1"    # a release
+pip install "git+ssh://git@github.com/Kneidl18/PAD_train.git@1.0.0"    # a release
 
 # HTTPS (uses your git credential helper, or asks for user name and access token)
 pip install "git+https://github.com/Kneidl18/PAD_train.git"            # latest main
-pip install "git+https://github.com/Kneidl18/PAD_train.git@0.0.1"      # a release
+pip install "git+https://github.com/Kneidl18/PAD_train.git@1.0.0"      # a release
 ```
 
 For local development:
@@ -235,7 +235,7 @@ pytest            # tests; they generate their own toy data, no download needed
 ### Releasing
 
 1. Set the new `version` in `pyproject.toml`, merge it to `main`.
-2. Publish a GitHub release on `main` whose tag is exactly that version (e.g. `0.0.2`).
+2. Publish a GitHub release on `main` whose tag is exactly that version (e.g. `1.0.0`).
 
 The [`Publish to PyPI`](.github/workflows/publish.yml) workflow then checks,
 builds and uploads the package.
