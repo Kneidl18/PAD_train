@@ -260,7 +260,7 @@ request, and releases are tags on `main`. Bugs and ideas can be reported as
 
 - Andreas Auer (<andreas.auer03@gmail.com>)
 - Sarah Goetz (<sarahgoetz0603@gmail.com>)
-- Philipp Fuchs
+- Philipp Fuchs (<philipp.fuchs@stud.plus.ac.at>)
 
 The Haralick feature extraction (`src/pad_train/features/haralick.py`) is based
 on code by Chumakov, Demir and Waclawek.
