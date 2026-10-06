@@ -5,12 +5,13 @@ scheme, add a module here (or anywhere in your own code) that calls
 :func:`register_extractor`, then pass its name to :func:`pad_train.evaluate`.
 """
 
-from pad_train.features.fourier import fourier_features, make_fourier_extractor
+from pad_train.features.fourier import fourier_features, make_fourier_extractor, thirds_to_bands
 from pad_train.features.haralick import haralick_features
 from pad_train.features.registry import (
     FeatureExtractor,
     available_extractors,
     get_extractor,
+    register_dataset_extractor,
     register_extractor,
 )
 
@@ -21,5 +22,7 @@ __all__ = [
     "get_extractor",
     "haralick_features",
     "make_fourier_extractor",
+    "register_dataset_extractor",
     "register_extractor",
+    "thirds_to_bands",
 ]

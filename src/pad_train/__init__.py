@@ -18,6 +18,7 @@ from pad_train.features import (
     available_extractors,
     get_extractor,
     make_fourier_extractor,
+    register_dataset_extractor,
     register_extractor,
 )
 from pad_train.metrics import PadMetrics, pad_metrics
@@ -44,6 +45,7 @@ __all__ = [
     "load_data",
     "make_fourier_extractor",
     "pad_metrics",
+    "register_dataset_extractor",
     "register_extractor",
     "settings",
 ]

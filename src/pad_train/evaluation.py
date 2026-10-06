@@ -167,7 +167,9 @@ def evaluate(
     Args:
         datasets: Dataset names. ``None`` evaluates all configured datasets.
         extractors: Feature extractors, given by registered name or as a
-            callable (which is then listed under its ``__name__``).
+            callable (which is then listed under its ``__name__``). Named
+            extractors use their per-dataset settings from the configuration,
+            e.g. ``fourier`` uses :attr:`DatasetConfig.fourier_thirds`.
         synthetic: Names of the synthetic sources to train on. ``None`` uses
             all configured ones.
         protocols: Protocols to run, a subset of :data:`PROTOCOLS`.
@@ -187,16 +189,18 @@ def evaluate(
     """
     config = config or settings
     needs_synthetic = "synthetic" in protocols
-    named = [
-        (e, get_extractor(e)) if isinstance(e, str) else (getattr(e, "__name__", repr(e)), e)
-        for e in extractors
-    ]
 
     frames: list[pd.DataFrame] = []
     for dataset in datasets if datasets is not None else list(config.datasets):
+        layout = config.datasets[dataset]
         data = load_data(dataset, synthetic if needs_synthetic else (), download, config)
-        k = n_neighbors if n_neighbors is not None else config.datasets[dataset].n_neighbors
-        for name, extractor in named:
+        k = n_neighbors if n_neighbors is not None else layout.n_neighbors
+        for item in extractors:
+            # Named extractors may carry per-dataset settings (e.g. the Fourier thirds).
+            if isinstance(item, str):
+                name, extractor = item, get_extractor(item, layout)
+            else:
+                name, extractor = getattr(item, "__name__", repr(item)), item
             frame = evaluate_dataset(
                 data,
                 extractor,
