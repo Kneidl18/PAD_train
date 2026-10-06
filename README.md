@@ -45,32 +45,8 @@ Details worth knowing:
 
 ## Installation
 
-From PyPI:
-
 ```bash
 pip install pad-train
-```
-
-Directly from the repository, over SSH or HTTPS. The repository is private, so either way
-you need access to it:
-
-```bash
-# SSH (needs an SSH key registered with GitHub)
-pip install "git+ssh://git@github.com/Kneidl18/PAD_train.git"          # latest main
-pip install "git+ssh://git@github.com/Kneidl18/PAD_train.git@1.0.0"    # a release
-
-# HTTPS (uses your git credential helper, or asks for user name and access token)
-pip install "git+https://github.com/Kneidl18/PAD_train.git"            # latest main
-pip install "git+https://github.com/Kneidl18/PAD_train.git@1.0.0"      # a release
-```
-
-For local development:
-
-```bash
-git clone git@github.com:Kneidl18/PAD_train.git
-cd PAD_train
-conda env create -f environment.yml    # installs the package in editable mode
-conda activate pad_train
 ```
 
 ## Data
