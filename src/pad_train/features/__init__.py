@@ -6,7 +6,7 @@ scheme, add a module here (or anywhere in your own code) that calls
 """
 
 from pad_train.features.fourier import fourier_features, make_fourier_extractor
-from pad_train.features.lbp import lbp_features
+from pad_train.features.haralick import haralick_features
 from pad_train.features.registry import (
     FeatureExtractor,
     available_extractors,
@@ -19,7 +19,7 @@ __all__ = [
     "available_extractors",
     "fourier_features",
     "get_extractor",
-    "lbp_features",
+    "haralick_features",
     "make_fourier_extractor",
     "register_extractor",
 ]

@@ -5,7 +5,7 @@ Typical use::
     import pad_train
 
     pad_train.settings.data_root = "/path/to/data"   # optional
-    results = pad_train.evaluate(extractors=["fourier", "lbp"])   # pandas.DataFrame
+    results = pad_train.evaluate(extractors=["fourier", "haralick"])   # pandas.DataFrame
 """
 
 from importlib.metadata import PackageNotFoundError, version

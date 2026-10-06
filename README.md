@@ -105,7 +105,7 @@ Fetching happens in one of two ways:
 ```python
 import pad_train
 
-results = pad_train.evaluate(extractors=["fourier", "lbp"])
+results = pad_train.evaluate(extractors=["fourier", "haralick"])
 print(results)
 ```
 
@@ -140,7 +140,7 @@ feature matrices.
 The same from the command line:
 
 ```bash
-pad-train evaluate --datasets PLUS IDIAP --extractors fourier lbp --output results.csv
+pad-train evaluate --datasets PLUS IDIAP --extractors fourier haralick --output results.csv
 pad-train evaluate --help
 ```
 
@@ -149,10 +149,10 @@ pad-train evaluate --help
 A feature extractor is any callable that maps a grayscale image (2-D `uint8`
 array) to a 1-D feature vector whose length does not depend on the image size.
 
-| Name      | Description                                                            |
-|-----------|------------------------------------------------------------------------|
-| `fourier` | log energy of the power spectrum in 30 concentric radial bands         |
-| `lbp`     | histogram of basic 3x3 local binary patterns (256 bins)                |
+| Name       | Description                                                            |
+|------------|------------------------------------------------------------------------|
+| `fourier`  | log energy of the power spectrum in 30 concentric radial bands         |
+| `haralick` | 13 Haralick texture statistics, averaged over the four directions      |
 
 Adding one takes a single decorator, in this package
 (`src/pad_train/features/`) or in your own code:
