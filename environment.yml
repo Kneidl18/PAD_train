@@ -1,0 +1,17 @@
+# Conda environment for local development.
+#
+#   conda env create -f environment.yml
+#   conda activate pad_train
+name: pad_train
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - numpy
+  - pandas
+  - pillow
+  - scikit-learn
+  - pip:
+      # The package itself, editable, including the lint/test tooling.
+      - -e .[dev]
