@@ -7,7 +7,7 @@ import pytest
 
 import pad_train
 from pad_train import Settings
-from pad_train.features import fourier_features, lbp_features
+from pad_train.features import fourier_features, haralick_features
 
 from .conftest import N_SUBJECTS, SAMPLES_PER_SUBJECT
 
@@ -27,8 +27,8 @@ def test_extractors_are_size_independent(shape: tuple[int, int]) -> None:
     assert fourier_features(image).shape == (30,)
     assert fourier_features(image, bands=range(10)).shape == (10,)
     assert np.isclose(np.linalg.norm(fourier_features(image)), 1.0)
-    assert lbp_features(image).shape == (256,)
-    assert np.isclose(lbp_features(image).sum(), 1.0)
+    assert haralick_features(image).shape == (13,)
+    assert np.isfinite(haralick_features(image)).all()
 
 
 def test_fourier_band_energies_sum_to_total_power() -> None:
@@ -40,7 +40,7 @@ def test_fourier_band_energies_sum_to_total_power() -> None:
 
 
 def test_registry() -> None:
-    assert {"fourier", "lbp"} <= set(pad_train.available_extractors())
+    assert {"fourier", "haralick"} <= set(pad_train.available_extractors())
     with pytest.raises(KeyError, match="Unknown feature extractor"):
         pad_train.get_extractor("does-not-exist")
 
@@ -62,7 +62,7 @@ def test_load_data_without_download_raises(config: Settings) -> None:
 
 
 def test_evaluate(config: Settings) -> None:
-    results = pad_train.evaluate(extractors=["fourier", "lbp"], config=config)
+    results = pad_train.evaluate(extractors=["fourier", "haralick"], config=config)
     assert list(results.columns) == [
         "dataset", "extractor", "protocol", "train_attack", "APCER", "BPCER", "ACER",
     ]  # fmt: skip
