@@ -4,18 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pad_train"
-version = "0.0.2"
+version = "1.0.0"
 description = "k-NN presentation attack detection (PAD) for finger vein data, trained on real or synthetic attack samples."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-  { name = "Andreas Auer" },
-  { name = "TODO: second author" },
-  { name = "TODO: third author" },
+  { name = "Andreas Auer", email = "andreas.auer03@gmail.com" },
+  { name = "Sarah Goetz", email = "sarahgoetz0603@gmail.com"},
+  { name = "Philipp Fuchs"},
 ]
 keywords = ["biometrics", "finger vein", "presentation attack detection", "k-NN", "synthetic data"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Science/Research",
   "Programming Language :: Python :: 3",
   "Topic :: Scientific/Engineering :: Image Recognition",

@@ -57,11 +57,11 @@ you need access to it:
 ```bash
 # SSH (needs an SSH key registered with GitHub)
 pip install "git+ssh://git@github.com/Kneidl18/PAD_train.git"          # latest main
-pip install "git+ssh://git@github.com/Kneidl18/PAD_train.git@0.0.1"    # a release
+pip install "git+ssh://git@github.com/Kneidl18/PAD_train.git@1.0.0"    # a release
 
 # HTTPS (uses your git credential helper, or asks for user name and access token)
 pip install "git+https://github.com/Kneidl18/PAD_train.git"            # latest main
-pip install "git+https://github.com/Kneidl18/PAD_train.git@0.0.1"      # a release
+pip install "git+https://github.com/Kneidl18/PAD_train.git@1.0.0"      # a release
 ```
 
 For local development:
@@ -235,12 +235,41 @@ pytest            # tests; they generate their own toy data, no download needed
 ### Releasing
 
 1. Set the new `version` in `pyproject.toml`, merge it to `main`.
-2. Publish a GitHub release on `main` whose tag is exactly that version (e.g. `0.0.2`).
+2. Publish a GitHub release on `main` whose tag is exactly that version (e.g. `1.0.0`).
 
 The [`Publish to PyPI`](.github/workflows/publish.yml) workflow then checks,
 builds and uploads the package.
 
-### Branches
+## Contributing
 
-`main` is protected. Work happens on `dev` (or on branches merged into `dev`)
-and reaches `main` through a pull request. Releases are tags on `main`.
+Contributions are welcome through pull requests on
+[GitHub](https://github.com/Kneidl18/PAD_train):
+
+1. Fork the repository, or create a branch if you have write access, and
+   branch off `dev`.
+2. Make your change. New feature extractors go into `src/pad_train/features/`
+   and need a test.
+3. Run `ruff format .`, `ruff check .`, `mypy` and `pytest`; all four must pass.
+4. Open a pull request against `dev` and describe what changed and why.
+
+`main` is protected: it only receives changes from `dev` through a pull
+request, and releases are tags on `main`. Bugs and ideas can be reported as
+[issues](https://github.com/Kneidl18/PAD_train/issues).
+
+## Authors
+
+- Andreas Auer (<andreas.auer03@gmail.com>)
+- Sarah Goetz (<sarahgoetz0603@gmail.com>)
+- Philipp Fuchs
+
+The Haralick feature extraction (`src/pad_train/features/haralick.py`) is based
+on code by Chumakov, Demir and Waclawek.
+
+## Acknowledgements
+
+The datasets used by this package are provided by **Andreas Uhl** (Department
+of Artificial Intelligence and Human Interfaces, University of Salzburg): the
+bona fide and presentation attack samples of PLUS, IDIAP and SCUT as well as
+the diffusion-based synthetic samples. The evaluation protocol follows the
+tasks he set in his courses on image processing and multimedia security. Thank
+you for making the data and the topic available.
