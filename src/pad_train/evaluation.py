@@ -92,7 +92,6 @@ def cross_validate(
     subjects = np.concatenate([real_subjects, spoof_subjects])
     folds = GroupKFold(n_splits=n_folds).split(x_all, y_all, groups=subjects)
 
-    rng = np.random.default_rng(random_state)
     rows: list[dict[str, object]] = []
     for fold, (train_idx, test_idx) in enumerate(folds):
         x_test, y_test = x_all[test_idx], y_all[test_idx]
@@ -107,6 +106,9 @@ def cross_validate(
             x_real = x_all[train_idx][y_all[train_idx] == BONA_FIDE]
             for name, x_synthetic in synthetic.items():
                 if balance_synthetic and len(x_synthetic) > len(x_real):
+                    # Seeded per fold, so sources of equal size contribute the same
+                    # sample indices (e.g. a source and its post-processed version).
+                    rng = np.random.default_rng([random_state, fold])
                     chosen = rng.choice(len(x_synthetic), size=len(x_real), replace=False)
                     x_synthetic = x_synthetic[chosen]
                 x_train = np.vstack([x_real, x_synthetic])
