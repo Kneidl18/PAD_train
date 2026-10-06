@@ -256,6 +256,15 @@ Contributions are welcome through pull requests on
 request, and releases are tags on `main`. Bugs and ideas can be reported as
 [issues](https://github.com/Kneidl18/PAD_train/issues).
 
+## Authors
+
+- Andreas Auer (<andreas.auer03@gmail.com>)
+- Sarah Goetz (<sarahgoetz0603@gmail.com>)
+- Philipp Fuchs
+
+The Haralick feature extraction (`src/pad_train/features/haralick.py`) is based
+on code by Chumakov, Demir and Waclawek.
+
 ## Acknowledgements
 
 The datasets used by this package are provided by **Andreas Uhl** (Department
