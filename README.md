@@ -45,7 +45,13 @@ Details worth knowing:
 
 ## Installation
 
-As a dependency, over SSH or HTTPS. The repository is private, so either way
+From PyPI:
+
+```bash
+pip install pad-train
+```
+
+Directly from the repository, over SSH or HTTPS. The repository is private, so either way
 you need access to it:
 
 ```bash
@@ -225,6 +231,16 @@ ruff check .      # linting (annotations and docstrings included)
 mypy              # static type checking
 pytest            # tests; they generate their own toy data, no download needed
 ```
+
+### Releasing
+
+1. Set the new `version` in `pyproject.toml`, merge it to `main`.
+2. Publish a GitHub release on `main` whose tag is exactly that version (e.g. `0.0.2`).
+
+The [`Publish to PyPI`](.github/workflows/publish.yml) workflow then checks,
+builds and uploads the package.
+
+### Branches
 
 `main` is protected. Work happens on `dev` (or on branches merged into `dev`)
 and reaches `main` through a pull request. Releases are tags on `main`.
