@@ -75,6 +75,13 @@ def test_evaluate(config: Settings) -> None:
     assert sorted(per_fold["fold"]) == list(range(config.n_folds))
 
 
+def test_equal_synthetic_sources_give_equal_results(config: Settings) -> None:
+    config.synthetic_sources["copy"] = config.synthetic_sources["synth"]
+    results = pad_train.evaluate(protocols=["synthetic"], per_fold=True, config=config)
+    by_source = results.set_index(["train_attack", "fold"])[["APCER", "BPCER"]]
+    assert by_source.loc["synth"].equals(by_source.loc["copy"])
+
+
 def test_evaluate_accepts_custom_extractor(config: Settings) -> None:
     @pad_train.register_extractor("mean_std")
     def mean_std(image: pad_train.data.Image) -> np.ndarray:
