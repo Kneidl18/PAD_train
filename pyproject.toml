@@ -4,13 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pad_train"
-version = "1.0.1"
+version = "1.0.2"
 description = "k-NN presentation attack detection (PAD) for finger vein data, trained on real or synthetic attack samples."
 readme = "README.md"
 requires-python = ">=3.10"
-# Every author needs an email: entries without one land in a different metadata
-# field, and PyPI then shows only those names next to someone else's address.
+# Each author is listed twice on purpose. PyPI shows the "Author" metadata
+# field (filled from the name-only entries) in full, but only the first entry
+# of "Author-email" (filled from the entries with an email).
 authors = [
+  { name = "Andreas Auer" },
+  { name = "Sarah Goetz" },
+  { name = "Philipp Fuchs" },
   { name = "Andreas Auer", email = "andreas.auer03@gmail.com" },
   { name = "Sarah Goetz", email = "sarahgoetz0603@gmail.com" },
   { name = "Philipp Fuchs", email = "philipp.fuchs@stud.plus.ac.at" },
