@@ -4,14 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pad_train"
-version = "1.0.0"
+version = "1.0.1"
 description = "k-NN presentation attack detection (PAD) for finger vein data, trained on real or synthetic attack samples."
 readme = "README.md"
 requires-python = ">=3.10"
+# Names only: mixing entries with and without an email makes PyPI show a
+# single name next to someone else's address. Contact details are in the README.
 authors = [
-  { name = "Andreas Auer", email = "andreas.auer03@gmail.com" },
-  { name = "Sarah Goetz", email = "sarahgoetz0603@gmail.com"},
-  { name = "Philipp Fuchs"},
+  { name = "Andreas Auer" },
+  { name = "Sarah Goetz" },
+  { name = "Philipp Fuchs" },
 ]
 keywords = ["biometrics", "finger vein", "presentation attack detection", "k-NN", "synthetic data"]
 classifiers = [
