@@ -45,11 +45,17 @@ Details worth knowing:
 
 ## Installation
 
-As a dependency (SSH access to the repository required):
+As a dependency, over SSH or HTTPS. The repository is private, so either way
+you need access to it:
 
 ```bash
+# SSH (needs an SSH key registered with GitHub)
 pip install "git+ssh://git@github.com/Kneidl18/PAD_train.git"          # latest main
 pip install "git+ssh://git@github.com/Kneidl18/PAD_train.git@0.0.1"    # a release
+
+# HTTPS (uses your git credential helper, or asks for user name and access token)
+pip install "git+https://github.com/Kneidl18/PAD_train.git"            # latest main
+pip install "git+https://github.com/Kneidl18/PAD_train.git@0.0.1"      # a release
 ```
 
 For local development:
