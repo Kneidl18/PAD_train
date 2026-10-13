@@ -7,7 +7,7 @@ name = "pad_train"
 version = "1.0.2"
 description = "k-NN presentation attack detection (PAD) for finger vein data, trained on real or synthetic attack samples."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"  # required by numpy 2.5
 # Each author is listed twice on purpose. PyPI shows the "Author" metadata
 # field (filled from the name-only entries) in full, but only the first entry
 # of "Author-email" (filled from the entries with an email).
@@ -28,19 +28,19 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
-  "mahotas>=1.4.18",
-  "numpy>=1.26",
-  "pandas>=2.0",
-  "pillow>=10.0",
-  "scikit-learn>=1.4",
+  "mahotas>=1.4.19",
+  "numpy>=2.5",
+  "pandas>=3.0",
+  "pillow>=12.3",
+  "scikit-learn>=1.9",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "mypy>=1.10",
-  "pandas-stubs",
-  "pytest>=8.0",
-  "ruff>=0.6",
+  "mypy>=2.4",
+  "pandas-stubs>=3.0",
+  "pytest>=9.1",
+  "ruff>=0.17",
 ]
 
 [project.scripts]
