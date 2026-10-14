@@ -7,7 +7,8 @@ import shutil
 import tempfile
 import urllib.request
 import zipfile
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -135,6 +136,18 @@ def image_files(folder: Path) -> list[Path]:
     return sorted(p for p in folder.rglob("*") if p.suffix.lower() in IMAGE_SUFFIXES)
 
 
+def parallel_map[T, R](function: Callable[[T], R], items: Sequence[T], workers: int = 1) -> list[R]:
+    """Return ``[function(item) for item in items]``, computed by ``workers`` threads.
+
+    Threads suit the work in this package: image decoding and the numerical
+    libraries release the interpreter lock, and nothing has to be copied.
+    """
+    if workers <= 1 or len(items) <= 1:
+        return [function(item) for item in items]
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        return list(executor.map(function, items))
+
+
 def read_image(path: Path) -> Image:
     """Read an image file as a grayscale array."""
     with PILImage.open(path) as image:
@@ -146,6 +159,7 @@ def load_data(
     synthetic: Sequence[str] | None = None,
     download: bool = True,
     config: Settings | None = None,
+    workers: int = 1,
 ) -> PadData:
     """Load one dataset, downloading the underlying archives when necessary.
 
@@ -155,6 +169,7 @@ def load_data(
             configured ones, an empty sequence loads none.
         download: Fetch missing sources. If ``False`` a missing source raises.
         config: Settings to use instead of the package-wide ones.
+        workers: Number of threads reading the images.
 
     Returns:
         The balanced bona fide / attack samples plus the synthetic samples.
@@ -191,15 +206,15 @@ def load_data(
     for name in names:
         ensure_source(config.synthetic_sources[name], download, config)
         folder = config.synthetic_folder(name, dataset)
-        synthetic_images[name] = [read_image(p) for p in image_files(folder)]
+        synthetic_images[name] = parallel_map(read_image, image_files(folder), workers)
         if not synthetic_images[name]:
             raise FileNotFoundError(f"No synthetic samples for {dataset} in {folder}")
 
     return PadData(
         dataset=dataset,
-        real=[read_image(p) for p in real_files],
+        real=parallel_map(read_image, real_files, workers),
         real_subjects=np.array([p.parent.name for p in real_files]),
-        spoof=[read_image(p) for p in spoof_files],
+        spoof=parallel_map(read_image, spoof_files, workers),
         spoof_subjects=np.array([p.parent.name for p in spoof_files]),
         synthetic=synthetic_images,
     )

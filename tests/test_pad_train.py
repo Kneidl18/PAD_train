@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import pad_train
@@ -93,6 +94,12 @@ def test_evaluate(config: Settings) -> None:
 
     per_fold = pad_train.evaluate(per_fold=True, protocols=["baseline"], config=config)
     assert sorted(per_fold["fold"]) == list(range(config.n_folds))
+
+
+def test_workers_do_not_change_results(config: Settings) -> None:
+    serial = pad_train.evaluate(extractors=["fourier", "haralick"], config=config)
+    parallel = pad_train.evaluate(extractors=["fourier", "haralick"], config=config, workers=4)
+    pd.testing.assert_frame_equal(serial, parallel)
 
 
 def test_equal_synthetic_sources_give_equal_results(config: Settings) -> None:
