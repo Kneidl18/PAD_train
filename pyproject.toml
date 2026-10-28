@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pad_train"
-version = "1.0.2"
+version = "1.1.0"
 description = "k-NN presentation attack detection (PAD) for finger vein data, trained on real or synthetic attack samples."
 readme = "README.md"
 requires-python = ">=3.12"  # required by numpy 2.5
