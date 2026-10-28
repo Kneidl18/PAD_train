@@ -33,6 +33,9 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--n-neighbors", type=int, help="k of the k-NN (default: per dataset)")
     run.add_argument("--per-fold", action="store_true", help="report every fold, not the mean")
     run.add_argument("--no-download", action="store_true", help="fail if data is missing")
+    run.add_argument(
+        "--workers", type=int, default=1, help="threads reading images and extracting features"
+    )
     run.add_argument("--output", type=Path, help="also write the table to this CSV file")
     return parser
 
@@ -56,6 +59,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         n_neighbors=args.n_neighbors,
         per_fold=args.per_fold,
         download=not args.no_download,
+        workers=args.workers,
     )
     print(results.to_string(index=False, float_format="{:.4f}".format))
     if args.output is not None:

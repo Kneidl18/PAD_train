@@ -21,7 +21,7 @@ from sklearn.model_selection import GroupKFold
 from sklearn.neighbors import KNeighborsClassifier
 
 from pad_train.config import Settings, settings
-from pad_train.data import Image, PadData, load_data
+from pad_train.data import Image, PadData, load_data, parallel_map
 from pad_train.features.registry import FeatureExtractor, get_extractor
 from pad_train.metrics import ATTACK, BONA_FIDE, pad_metrics
 
@@ -35,9 +35,14 @@ METRIC_COLUMNS: list[str] = ["APCER", "BPCER", "ACER"]
 Features = NDArray[np.float64]
 
 
-def extract_features(images: Sequence[Image], extractor: FeatureExtractor) -> Features:
-    """Stack the feature vectors of ``images`` into an ``(n, d)`` matrix."""
-    return np.vstack([extractor(image) for image in images])
+def extract_features(
+    images: Sequence[Image], extractor: FeatureExtractor, workers: int = 1
+) -> Features:
+    """Stack the feature vectors of ``images`` into an ``(n, d)`` matrix.
+
+    ``workers`` threads compute them; the extractor must be thread-safe.
+    """
+    return np.vstack(parallel_map(extractor, images, workers))
 
 
 def _knn_predict(
@@ -135,14 +140,15 @@ def evaluate_dataset(
     balance_synthetic: bool = True,
     n_folds: int = 5,
     random_state: int = 42,
+    workers: int = 1,
 ) -> pd.DataFrame:
     """Extract features from ``data`` and cross-validate, see :func:`cross_validate`."""
     return cross_validate(
-        real=extract_features(data.real, extractor),
+        real=extract_features(data.real, extractor, workers),
         real_subjects=data.real_subjects,
-        spoof=extract_features(data.spoof, extractor),
+        spoof=extract_features(data.spoof, extractor, workers),
         spoof_subjects=data.spoof_subjects,
-        synthetic={k: extract_features(v, extractor) for k, v in data.synthetic.items()},
+        synthetic={k: extract_features(v, extractor, workers) for k, v in data.synthetic.items()},
         n_neighbors=n_neighbors,
         protocols=protocols,
         balance_synthetic=balance_synthetic,
@@ -161,6 +167,7 @@ def evaluate(
     per_fold: bool = False,
     download: bool = True,
     config: Settings | None = None,
+    workers: int = 1,
 ) -> pd.DataFrame:
     """Evaluate the PAD system and return APCER, BPCER and ACER as a table.
 
@@ -180,6 +187,8 @@ def evaluate(
             the mean over the folds.
         download: Fetch missing data sources.
         config: Settings to use instead of the package-wide ones.
+        workers: Number of threads reading images and extracting features.
+            The results do not depend on it.
 
     Returns:
         A :class:`pandas.DataFrame` with the columns ``dataset``, ``extractor``,
@@ -193,7 +202,7 @@ def evaluate(
     frames: list[pd.DataFrame] = []
     for dataset in datasets if datasets is not None else list(config.datasets):
         layout = config.datasets[dataset]
-        data = load_data(dataset, synthetic if needs_synthetic else (), download, config)
+        data = load_data(dataset, synthetic if needs_synthetic else (), download, config, workers)
         k = n_neighbors if n_neighbors is not None else layout.n_neighbors
         for item in extractors:
             # Named extractors may carry per-dataset settings (e.g. the Fourier thirds).
@@ -209,6 +218,7 @@ def evaluate(
                 balance_synthetic,
                 config.n_folds,
                 config.random_state,
+                workers,
             )
             frames.append(frame.assign(dataset=dataset, extractor=name))
 

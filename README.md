@@ -10,13 +10,13 @@ It returns APCER, BPCER and ACER as a `pandas.DataFrame`.
 
 Three sample types are involved:
 
-| Type | Meaning                                   | Source                       |
-|------|-------------------------------------------|------------------------------|
-| (1)  | bona fide ("real")                        | `Data_FV_Spoofing_WS2025_26` |
-| (2)  | real presentation attack ("spoof")        | `Data_FV_Spoofing_WS2025_26` |
-| (3)  | synthetic presentation attack (diffusion) | `AE_Res-diff`, `VAE-diff`    |
+| Type | Meaning                            | Source                                                   |
+|------|------------------------------------|----------------------------------------------------------|
+| (1)  | bona fide ("real")                 | `Data_FV_Spoofing_WS2025_26`; PROTECT: `Data_prepared`   |
+| (2)  | real presentation attack ("spoof") | `Data_FV_Spoofing_WS2025_26`; PROTECT: `Data_prepared`   |
+| (3)  | synthetic presentation attack      | diffusion: `AE_Res-diff`, `VAE-diff`; GANs: `Data_prepared` |
 
-Each dataset (PLUS, IDIAP, SCUT) is evaluated with a five-fold cross-validation.
+Each dataset (PLUS, IDIAP, SCUT, PROTECT) is evaluated with a five-fold cross-validation.
 The folds partition the **subjects**, so no person is in training and test at
 the same time. Only type (1) samples that have a type (2) counterpart are used
 (balanced sets). Two protocols run on identical folds:
@@ -40,7 +40,10 @@ Details worth knowing:
   fide training samples (`balance_synthetic=True`), which keeps the training set
   the same size as in the baseline. Synthetic samples are never part of a test set.
 - "Has a counterpart" is decided per file name for PLUS and IDIAP (real and
-  spoof captures share their names) and per subject for SCUT.
+  spoof captures share their names) and per subject for SCUT and PROTECT.
+- Not every synthetic source covers every dataset: the diffusion samples
+  exist for PLUS, IDIAP and SCUT only. A source is skipped on datasets it does
+  not cover, so those rows are simply missing from the result.
 - The metrics are computed per fold and then averaged.
 
 ## Installation
@@ -51,15 +54,43 @@ pip install pad-train
 
 ## Data
 
-The three archives (about 3 GB in total) are downloaded on demand into the
-data root and removed after extraction:
+The archives are downloaded on demand into the data root and removed after
+extraction:
 
 ```text
 <data root>/
-├── Data_FV_Spoofing_WS2025_26/   # types (1) and (2)
-├── AE_Res-diff/                  # type (3), residual auto encoder
-└── VAE-diff/                     # type (3), variational auto encoder
+├── Data_FV_Spoofing_WS2025_26/   # types (1) and (2) of PLUS, IDIAP, SCUT (2 GB)
+├── AE_Res-diff/                  # type (3), residual auto encoder (0.9 GB)
+├── VAE-diff/                     # type (3), variational auto encoder (0.9 GB)
+└── Data_prepared/                # type (3) of four GANs, PROTECT (0.6 of 7.3 GB)
 ```
+
+| Source        | Datasets                     | Generator                                       |
+|---------------|------------------------------|-------------------------------------------------|
+| `AE_Res`      | PLUS, IDIAP, SCUT            | diffusion model, residual auto encoder          |
+| `VAE`         | PLUS, IDIAP, SCUT            | diffusion model, variational auto encoder       |
+| `CycleGAN`    | PLUS, IDIAP, SCUT, PROTECT   | CycleGAN                                        |
+| `DistanceGAN` | PLUS, IDIAP, SCUT, PROTECT   | DistanceGAN                                     |
+| `DRIT`        | PLUS, IDIAP, SCUT, PROTECT   | DRIT                                            |
+| `StarGANv2`   | PLUS, IDIAP, SCUT, PROTECT   | StarGAN v2                                      |
+
+**`Data_prepared`** holds the samples of the master thesis "Deep Learning
+Framework: CycleGAN's and their derivatives in image synthesis for the
+evaluation of biometric systems" (University of Salzburg). Of its many variants
+the package uses, per database, the one without mixed fingers and without
+extra training images (PLUS 001, IDIAP 009, PROTECT 010; SCUT 007, which adds
+training images, since the plain one is not included), with the synthetic
+samples of all five folds at the original image size (`all_rs/reference`). It
+also brings **PROTECT**, a small hand vein database (10 subjects, 5 bona fide
+and 5 attack images each, 384 × 384). The variants are set in
+`PREPARED_VARIANTS` in [`src/pad_train/config.py`](src/pad_train/config.py).
+
+**Slow connections:** the archive is 7.3 GB, but only the parts the package
+uses (about 600 MB) are downloaded: its table of contents is read first, then
+only the needed entries are fetched with HTTP byte ranges. A download that
+breaks off is retried and continues where it stopped, also after the program
+was stopped; just run the same command again. Progress, speed and the remaining
+time are logged every 30 seconds.
 
 The data root defaults to `./data` (relative to the working directory). Change
 it in Python, through the environment, or on the command line:
@@ -114,12 +145,13 @@ Useful arguments of `evaluate()`:
 |---------------------|----------------|-------------------------------------------------|
 | `datasets`          | all            | e.g. `["PLUS"]`                                 |
 | `extractors`        | `("fourier",)` | registered names or callables                   |
-| `synthetic`         | all            | e.g. `["VAE"]`                                  |
+| `synthetic`         | all            | e.g. `["VAE", "CycleGAN"]`                      |
 | `protocols`         | both           | `"baseline"` and/or `"synthetic"`               |
-| `n_neighbors`       | per dataset    | `k` of the k-NN (PLUS 6, IDIAP 1, SCUT 1)       |
+| `n_neighbors`       | per dataset    | `k` of the k-NN (PLUS 6, others 1)              |
 | `balance_synthetic` | `True`         | sub-sample the synthetic training samples       |
 | `per_fold`          | `False`        | one row per fold instead of the mean            |
 | `download`          | `True`         | fetch missing data                              |
+| `workers`           | `1`            | threads reading images and computing features   |
 
 Lower-level building blocks: `load_data()` returns the images of one dataset,
 `evaluate_dataset()` evaluates images, `cross_validate()` evaluates precomputed
@@ -197,7 +229,15 @@ settings.synthetic_sources["VAE_cleaned"] = DataSource("VAE_cleaned", Path("/dat
 evaluate(synthetic=["VAE", "VAE_cleaned"])
 ```
 
-The dataset folder names are `PLUS_matched`, `IDIAP` and `SCUT`.
+The dataset folder names are `PLUS_matched`, `IDIAP` and `SCUT`. A source
+with another layout lists its folder per dataset instead, which also limits it
+to those datasets:
+
+```python
+settings.synthetic_sources["mine"] = DataSource(
+    "mine", Path("/data/mine"), folders={"PLUS": "plus/out", "SCUT": "scut/out"}
+)
+```
 
 ## Development
 
@@ -249,7 +289,8 @@ on code by Chumakov, Demir and Waclawek.
 
 The datasets used by this package are provided by **Andreas Uhl** (Department
 of Artificial Intelligence and Human Interfaces, University of Salzburg): the
-bona fide and presentation attack samples of PLUS, IDIAP and SCUT as well as
-the diffusion-based synthetic samples. The evaluation protocol follows the
+bona fide and presentation attack samples of PLUS, IDIAP and SCUT, the
+diffusion-based synthetic samples, and the GAN-based synthetic samples with the
+PROTECT database from the master thesis on CycleGAN and its derivatives. The evaluation protocol follows the
 tasks he set in his courses on image processing and multimedia security. Thank
 you for making the data and the topic available.
