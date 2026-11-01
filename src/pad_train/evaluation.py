@@ -19,6 +19,7 @@ import pandas as pd
 from numpy.typing import NDArray
 from sklearn.model_selection import GroupKFold
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
 
 from pad_train.config import Settings, settings
 from pad_train.data import Image, PadData, load_data, parallel_map
@@ -46,9 +47,21 @@ def extract_features(
 
 
 def _knn_predict(
-    x_train: Features, y_train: NDArray[np.intp], x_test: Features, n_neighbors: int
+    x_train: Features,
+    y_train: NDArray[np.intp],
+    x_test: Features,
+    n_neighbors: int,
+    scale_features: bool = False,
 ) -> NDArray[np.intp]:
-    """Fit a k-NN classifier and return its predictions for ``x_test``."""
+    """Fit a k-NN classifier and return its predictions for ``x_test``.
+
+    With ``scale_features`` a :class:`~sklearn.preprocessing.StandardScaler`
+    fitted on ``x_train`` standardises both matrices first; ``x_test`` never
+    enters the fit.
+    """
+    if scale_features:
+        scaler = StandardScaler().fit(x_train)
+        x_train, x_test = scaler.transform(x_train), scaler.transform(x_test)
     classifier = KNeighborsClassifier(n_neighbors=n_neighbors)
     classifier.fit(x_train, y_train)
     predictions: NDArray[np.intp] = classifier.predict(x_test)
@@ -66,6 +79,7 @@ def cross_validate(
     balance_synthetic: bool = True,
     n_folds: int = 5,
     random_state: int = 42,
+    scale_features: bool = False,
 ) -> pd.DataFrame:
     """Run both protocols on precomputed feature matrices.
 
@@ -82,6 +96,8 @@ def cross_validate(
             ``False`` all synthetic samples are used in every fold.
         n_folds: Number of subject-disjoint folds.
         random_state: Seed for the synthetic sub-sampling.
+        scale_features: Standardise the features with a scaler fitted on the
+            training samples of each fold (and training set) before the k-NN.
 
     Returns:
         One row per protocol, training attack source and fold with the columns
@@ -123,7 +139,8 @@ def cross_validate(
                 runs.append(("synthetic", name, x_train, y_train))
 
         for protocol, train_attack, x_train, y_train in runs:
-            metrics = pad_metrics(y_test, _knn_predict(x_train, y_train, x_test, n_neighbors))
+            predictions = _knn_predict(x_train, y_train, x_test, n_neighbors, scale_features)
+            metrics = pad_metrics(y_test, predictions)
             rows.append(
                 {"protocol": protocol, "train_attack": train_attack, "fold": fold}
                 | dict(zip(METRIC_COLUMNS, metrics, strict=True))
@@ -141,6 +158,7 @@ def evaluate_dataset(
     n_folds: int = 5,
     random_state: int = 42,
     workers: int = 1,
+    scale_features: bool = False,
 ) -> pd.DataFrame:
     """Extract features from ``data`` and cross-validate, see :func:`cross_validate`."""
     return cross_validate(
@@ -154,6 +172,7 @@ def evaluate_dataset(
         balance_synthetic=balance_synthetic,
         n_folds=n_folds,
         random_state=random_state,
+        scale_features=scale_features,
     )
 
 
@@ -168,6 +187,7 @@ def evaluate(
     download: bool = True,
     config: Settings | None = None,
     workers: int = 1,
+    scale_features: bool | None = None,
 ) -> pd.DataFrame:
     """Evaluate the PAD system and return APCER, BPCER and ACER as a table.
 
@@ -189,6 +209,9 @@ def evaluate(
         config: Settings to use instead of the package-wide ones.
         workers: Number of threads reading images and extracting features.
             The results do not depend on it.
+        scale_features: Standardise the features per fold before the k-NN,
+            see :func:`cross_validate`. ``None`` uses
+            :attr:`Settings.scale_features`.
 
     Returns:
         A :class:`pandas.DataFrame` with the columns ``dataset``, ``extractor``,
@@ -197,6 +220,8 @@ def evaluate(
         are fractions in ``[0, 1]``.
     """
     config = config or settings
+    if scale_features is None:
+        scale_features = config.scale_features
     needs_synthetic = "synthetic" in protocols
 
     frames: list[pd.DataFrame] = []
@@ -219,6 +244,7 @@ def evaluate(
                 config.n_folds,
                 config.random_state,
                 workers,
+                scale_features,
             )
             frames.append(frame.assign(dataset=dataset, extractor=name))
 
