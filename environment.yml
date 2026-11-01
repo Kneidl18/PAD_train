@@ -12,6 +12,7 @@ dependencies:
   - numpy
   - pandas
   - pillow
+  - scikit-image
   - scikit-learn
   - pip:
       # The package itself, editable, including the lint/test tooling.

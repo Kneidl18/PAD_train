@@ -173,6 +173,7 @@ array) to a 1-D feature vector whose length does not depend on the image size.
 |------------|--------------------------------------------------------------------------|
 | `fourier`  | log energy of the magnitude spectrum in radial bands, thirds per dataset |
 | `haralick` | 13 Haralick texture statistics, averaged over the four directions        |
+| `lbp`      | uniform LBP histograms at two scales (8 neighbours at radius 1, 16 at 2) |
 
 ### Fourier settings
 
