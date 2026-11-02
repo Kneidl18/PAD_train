@@ -8,7 +8,7 @@ import pytest
 
 import pad_train
 from pad_train import Settings
-from pad_train.features import fourier_features, haralick_features, thirds_to_bands
+from pad_train.features import fourier_features, haralick_features, lbp_features, thirds_to_bands
 
 from .conftest import N_SUBJECTS, SAMPLES_PER_SUBJECT
 
@@ -30,6 +30,10 @@ def test_extractors_are_size_independent(shape: tuple[int, int]) -> None:
     assert np.isclose(np.linalg.norm(fourier_features(image)), 1.0)
     assert haralick_features(image).shape == (13,)
     assert np.isfinite(haralick_features(image)).all()
+    lbp = lbp_features(image)
+    assert lbp.shape == (28,)
+    # One normalised histogram per scale: 10 bins for 8 neighbours, 18 bins for 16.
+    assert np.isclose(lbp[:10].sum(), 1.0) and np.isclose(lbp[10:].sum(), 1.0)
 
 
 def test_fourier_band_energies_sum_to_total_power() -> None:
@@ -61,7 +65,7 @@ def test_fourier_thirds() -> None:
 
 
 def test_registry() -> None:
-    assert {"fourier", "haralick"} <= set(pad_train.available_extractors())
+    assert {"fourier", "haralick", "lbp"} <= set(pad_train.available_extractors())
     with pytest.raises(KeyError, match="Unknown feature extractor"):
         pad_train.get_extractor("does-not-exist")
 

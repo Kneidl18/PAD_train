@@ -32,6 +32,7 @@ dependencies = [
   "numpy>=2.5",
   "pandas>=3.0",
   "pillow>=12.3",
+  "scikit-image>=0.26",
   "scikit-learn>=1.9",
 ]
 
@@ -73,7 +74,7 @@ strict = true
 files = ["src"]
 
 [[tool.mypy.overrides]]
-module = ["mahotas.*", "sklearn.*"]
+module = ["mahotas.*", "skimage.*", "sklearn.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
