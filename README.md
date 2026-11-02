@@ -27,7 +27,13 @@ the same time. Only type (1) samples that have a type (2) counterpart are used
 | `synthetic` | (1) vs. (3)                    | (1) vs. (2)          |
 
 The classifier is a k-nearest-neighbour classifier on top of an exchangeable
-feature extractor. The reported metrics follow ISO/IEC 30107-3:
+feature extractor. By default it works on the raw feature vectors; with
+`scale_features=True` (argument of `evaluate()`, `settings.scale_features`, or
+`--scale-features` on the command line) a `StandardScaler` fitted on the
+training samples of each fold standardises the features first. This matters
+for extractors whose features differ by orders of magnitude, such as
+`haralick`, and is off by default so that earlier results stay reproducible.
+The reported metrics follow ISO/IEC 30107-3:
 
 - **APCER** – share of attacks classified as bona fide
 - **BPCER** – share of bona fide samples classified as attack
@@ -152,6 +158,7 @@ Useful arguments of `evaluate()`:
 | `per_fold`          | `False`        | one row per fold instead of the mean            |
 | `download`          | `True`         | fetch missing data                              |
 | `workers`           | `1`            | threads reading images and computing features   |
+| `scale_features`    | `settings`     | standardise the features per fold before the k-NN |
 
 Lower-level building blocks: `load_data()` returns the images of one dataset,
 `evaluate_dataset()` evaluates images, `cross_validate()` evaluates precomputed
@@ -173,6 +180,7 @@ array) to a 1-D feature vector whose length does not depend on the image size.
 |------------|--------------------------------------------------------------------------|
 | `fourier`  | log energy of the magnitude spectrum in radial bands, thirds per dataset |
 | `haralick` | 13 Haralick texture statistics, averaged over the four directions        |
+| `lbp`      | uniform LBP histograms at two scales (8 neighbours at radius 1, 16 at 2) |
 
 ### Fourier settings
 

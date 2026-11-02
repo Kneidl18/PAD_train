@@ -5,10 +5,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.preprocessing import StandardScaler
 
 import pad_train
 from pad_train import Settings
-from pad_train.features import fourier_features, haralick_features, thirds_to_bands
+from pad_train.evaluation import _knn_predict
+from pad_train.features import fourier_features, haralick_features, lbp_features, thirds_to_bands
 
 from .conftest import N_SUBJECTS, SAMPLES_PER_SUBJECT
 
@@ -30,6 +32,10 @@ def test_extractors_are_size_independent(shape: tuple[int, int]) -> None:
     assert np.isclose(np.linalg.norm(fourier_features(image)), 1.0)
     assert haralick_features(image).shape == (13,)
     assert np.isfinite(haralick_features(image)).all()
+    lbp = lbp_features(image)
+    assert lbp.shape == (28,)
+    # One normalised histogram per scale: 10 bins for 8 neighbours, 18 bins for 16.
+    assert np.isclose(lbp[:10].sum(), 1.0) and np.isclose(lbp[10:].sum(), 1.0)
 
 
 def test_fourier_band_energies_sum_to_total_power() -> None:
@@ -61,7 +67,7 @@ def test_fourier_thirds() -> None:
 
 
 def test_registry() -> None:
-    assert {"fourier", "haralick"} <= set(pad_train.available_extractors())
+    assert {"fourier", "haralick", "lbp"} <= set(pad_train.available_extractors())
     with pytest.raises(KeyError, match="Unknown feature extractor"):
         pad_train.get_extractor("does-not-exist")
 
@@ -107,6 +113,55 @@ def test_equal_synthetic_sources_give_equal_results(config: Settings) -> None:
     results = pad_train.evaluate(protocols=["synthetic"], per_fold=True, config=config)
     by_source = results.set_index(["train_attack", "fold"])[["APCER", "BPCER"]]
     assert by_source.loc["synth"].equals(by_source.loc["copy"])
+
+
+def _record_scaler_fits(monkeypatch: pytest.MonkeyPatch) -> list[np.ndarray]:
+    """Make ``StandardScaler.fit`` record every matrix it is fitted on."""
+    seen: list[np.ndarray] = []
+    original_fit = StandardScaler.fit
+
+    def recording_fit(
+        self: StandardScaler, x: np.ndarray, *args: object, **kwargs: object
+    ) -> StandardScaler:
+        seen.append(np.array(x))
+        return original_fit(self, x, *args, **kwargs)
+
+    monkeypatch.setattr(StandardScaler, "fit", recording_fit)
+    return seen
+
+
+def test_knn_scaling_changes_prediction() -> None:
+    # Feature 0 separates the classes, feature 1 is uninformative and a thousand times larger.
+    x_train = np.array([[0.0, 0.0], [0.0, 1000.0], [1.0, 300.0], [1.0, 700.0]])
+    y_train = np.array([0, 0, 1, 1])
+    x_test = np.array([[1.0, 10.0], [0.0, 690.0]])
+    # Unscaled, the Euclidean distance is dominated by feature 1 and both answers are wrong.
+    assert list(_knn_predict(x_train, y_train, x_test, 1)) == [0, 1]
+    assert list(_knn_predict(x_train, y_train, x_test, 1, scale_features=True)) == [1, 0]
+
+
+def test_knn_scaler_is_fitted_on_training_rows_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = _record_scaler_fits(monkeypatch)
+    x_train = np.array([[0.0, 0.0], [1.0, 10.0], [2.0, 20.0]])
+    y_train = np.array([0, 1, 1])
+    x_test = np.array([[9.0, 90.0], [8.0, 80.0]])
+    _knn_predict(x_train, y_train, x_test, 1, scale_features=True)
+    assert len(seen) == 1 and np.array_equal(seen[0], x_train)
+    _knn_predict(x_train, y_train, x_test, 1)
+    assert len(seen) == 1  # no scaler without scaling
+
+
+def test_evaluate_scale_features(config: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = _record_scaler_fits(monkeypatch)
+    pad_train.evaluate(protocols=["baseline"], config=config)
+    assert not seen  # off by default
+    pad_train.evaluate(protocols=["baseline"], config=config, scale_features=True)
+    # One scaler per fold, fitted on the training share of the samples only.
+    n_train = 2 * N_SUBJECTS * SAMPLES_PER_SUBJECT * (config.n_folds - 1) // config.n_folds
+    assert [len(x) for x in seen] == [n_train] * config.n_folds
+    config.scale_features = True
+    pad_train.evaluate(protocols=["baseline"], config=config)
+    assert len(seen) == 2 * config.n_folds
 
 
 def test_evaluate_accepts_custom_extractor(config: Settings) -> None:
