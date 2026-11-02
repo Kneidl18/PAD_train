@@ -223,6 +223,9 @@ class Settings:
         datasets: Supported datasets, keyed by name.
         n_folds: Number of subject-disjoint cross-validation folds.
         random_state: Seed for every random choice (synthetic sub-sampling).
+        scale_features: Standardise the features with a scaler fitted on the
+            training samples of each fold before the k-NN. Off by default,
+            so that earlier results stay reproducible.
     """
 
     data_root: Path = field(default_factory=_default_data_root)
@@ -239,6 +242,7 @@ class Settings:
     datasets: dict[str, DatasetConfig] = field(default_factory=_default_datasets)
     n_folds: int = 5
     random_state: int = 42
+    scale_features: bool = False
 
     def resolve(self, source: DataSource) -> Path:
         """Return the absolute-or-root-relative directory of ``source``."""

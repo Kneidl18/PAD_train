@@ -36,6 +36,11 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--workers", type=int, default=1, help="threads reading images and extracting features"
     )
+    run.add_argument(
+        "--scale-features",
+        action="store_true",
+        help="standardise the features on each training fold before the k-NN",
+    )
     run.add_argument("--output", type=Path, help="also write the table to this CSV file")
     return parser
 
@@ -60,6 +65,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         per_fold=args.per_fold,
         download=not args.no_download,
         workers=args.workers,
+        scale_features=args.scale_features,
     )
     print(results.to_string(index=False, float_format="{:.4f}".format))
     if args.output is not None:
