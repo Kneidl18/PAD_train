@@ -118,6 +118,25 @@ def make_fourier_extractor(
     return extractor
 
 
-# Without a dataset all bands are used; with one, its configured thirds.
+def _per_dataset_only(name: str) -> FeatureExtractor:
+    """Return a placeholder for an extractor whose settings exist only per dataset."""
+
+    def extractor(image: Image) -> NDArray[np.float64]:
+        raise ValueError(
+            f"'{name}' selects its thirds per dataset; use get_extractor with a dataset"
+        )
+
+    return extractor
+
+
+# ``fourier`` always uses all bands; ``fourier_best`` and ``fourier_worst`` the
+# thirds of the dataset that work best and worst for the synthetic protocol.
 register_extractor("fourier", make_fourier_extractor())
-register_dataset_extractor("fourier", lambda ds: make_fourier_extractor(thirds=ds.fourier_thirds))
+register_extractor("fourier_best", _per_dataset_only("fourier_best"))
+register_dataset_extractor(
+    "fourier_best", lambda ds: make_fourier_extractor(thirds=ds.fourier_best_thirds)
+)
+register_extractor("fourier_worst", _per_dataset_only("fourier_worst"))
+register_dataset_extractor(
+    "fourier_worst", lambda ds: make_fourier_extractor(thirds=ds.fourier_worst_thirds)
+)

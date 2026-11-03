@@ -12,11 +12,11 @@ Three sample types are involved:
 
 | Type | Meaning                            | Source                                                   |
 |------|------------------------------------|----------------------------------------------------------|
-| (1)  | bona fide ("real")                 | `Data_FV_Spoofing_WS2025_26`; PROTECT: `Data_prepared`   |
-| (2)  | real presentation attack ("spoof") | `Data_FV_Spoofing_WS2025_26`; PROTECT: `Data_prepared`   |
+| (1)  | bona fide ("real")                 | `Data_FV_Spoofing_WS2025_26`                             |
+| (2)  | real presentation attack ("spoof") | `Data_FV_Spoofing_WS2025_26`                             |
 | (3)  | synthetic presentation attack      | diffusion: `AE_Res-diff`, `VAE-diff`; GANs: `Data_prepared` |
 
-Each dataset (PLUS, IDIAP, SCUT, PROTECT) is evaluated with a five-fold cross-validation.
+Each dataset (PLUS, IDIAP, SCUT) is evaluated with a five-fold cross-validation.
 The folds partition the **subjects**, so no person is in training and test at
 the same time. Only type (1) samples that have a type (2) counterpart are used
 (balanced sets). Two protocols run on identical folds:
@@ -27,12 +27,13 @@ the same time. Only type (1) samples that have a type (2) counterpart are used
 | `synthetic` | (1) vs. (3)                    | (1) vs. (2)          |
 
 The classifier is a k-nearest-neighbour classifier on top of an exchangeable
-feature extractor. By default it works on the raw feature vectors; with
-`scale_features=True` (argument of `evaluate()`, `settings.scale_features`, or
-`--scale-features` on the command line) a `StandardScaler` fitted on the
-training samples of each fold standardises the features first. This matters
-for extractors whose features differ by orders of magnitude, such as
-`haralick`, and is off by default so that earlier results stay reproducible.
+feature extractor. The features of extractors marked `requires_scaling = True`
+(the three `haralick` extractors, whose features differ by orders of magnitude)
+are standardised first, with a `StandardScaler` fitted on the training samples
+of each fold; all other features are used as they are. `scale_features`
+(argument of `evaluate()`, `settings.scale_features`, or `--scale-features` /
+`--no-scale-features` on the command line) forces scaling on or off for all
+extractors.
 The reported metrics follow ISO/IEC 30107-3:
 
 - **APCER** – share of attacks classified as bona fide
@@ -46,10 +47,7 @@ Details worth knowing:
   fide training samples (`balance_synthetic=True`), which keeps the training set
   the same size as in the baseline. Synthetic samples are never part of a test set.
 - "Has a counterpart" is decided per file name for PLUS and IDIAP (real and
-  spoof captures share their names) and per subject for SCUT and PROTECT.
-- Not every synthetic source covers every dataset: the diffusion samples
-  exist for PLUS, IDIAP and SCUT only. A source is skipped on datasets it does
-  not cover, so those rows are simply missing from the result.
+  spoof captures share their names) and per subject for SCUT.
 - The metrics are computed per fold and then averaged.
 
 ## Installation
@@ -68,27 +66,27 @@ extraction:
 ├── Data_FV_Spoofing_WS2025_26/   # types (1) and (2) of PLUS, IDIAP, SCUT (2 GB)
 ├── AE_Res-diff/                  # type (3), residual auto encoder (0.9 GB)
 ├── VAE-diff/                     # type (3), variational auto encoder (0.9 GB)
-└── Data_prepared/                # type (3) of four GANs, PROTECT (0.6 of 7.3 GB)
+└── Data_prepared/                # type (3) of four GANs (0.6 of 7.3 GB)
 ```
 
-| Source        | Datasets                     | Generator                                       |
-|---------------|------------------------------|-------------------------------------------------|
-| `AE_Res`      | PLUS, IDIAP, SCUT            | diffusion model, residual auto encoder          |
-| `VAE`         | PLUS, IDIAP, SCUT            | diffusion model, variational auto encoder       |
-| `CycleGAN`    | PLUS, IDIAP, SCUT, PROTECT   | CycleGAN                                        |
-| `DistanceGAN` | PLUS, IDIAP, SCUT, PROTECT   | DistanceGAN                                     |
-| `DRIT`        | PLUS, IDIAP, SCUT, PROTECT   | DRIT                                            |
-| `StarGANv2`   | PLUS, IDIAP, SCUT, PROTECT   | StarGAN v2                                      |
+| Source        | Generator                                       |
+|---------------|-------------------------------------------------|
+| `AE_Res`      | diffusion model, residual auto encoder          |
+| `VAE`         | diffusion model, variational auto encoder       |
+| `CycleGAN`    | CycleGAN                                        |
+| `DistanceGAN` | DistanceGAN                                     |
+| `DRIT`        | DRIT                                            |
+| `StarGANv2`   | StarGAN v2                                      |
 
 **`Data_prepared`** holds the samples of the master thesis "Deep Learning
 Framework: CycleGAN's and their derivatives in image synthesis for the
 evaluation of biometric systems" (University of Salzburg). Of its many variants
 the package uses, per database, the one without mixed fingers and without
-extra training images (PLUS 001, IDIAP 009, PROTECT 010; SCUT 007, which adds
+extra training images (PLUS 001, IDIAP 009; SCUT 007, which adds
 training images, since the plain one is not included), with the synthetic
-samples of all five folds at the original image size (`all_rs/reference`). It
-also brings **PROTECT**, a small hand vein database (10 subjects, 5 bona fide
-and 5 attack images each, 384 × 384). The variants are set in
+samples of all five folds at the original image size (`all_rs/reference`). The
+archive also holds the PROTECT hand vein database, which the package does not
+use. The variants are set in
 `PREPARED_VARIANTS` in [`src/pad_train/config.py`](src/pad_train/config.py).
 
 **Slow connections:** the archive is 7.3 GB, but only the parts the package
@@ -158,7 +156,7 @@ Useful arguments of `evaluate()`:
 | `per_fold`          | `False`        | one row per fold instead of the mean            |
 | `download`          | `True`         | fetch missing data                              |
 | `workers`           | `1`            | threads reading images and computing features   |
-| `scale_features`    | `settings`     | standardise the features per fold before the k-NN |
+| `scale_features`    | per extractor  | `True`/`False` forces standardising per fold on/off |
 
 Lower-level building blocks: `load_data()` returns the images of one dataset,
 `evaluate_dataset()` evaluates images, `cross_validate()` evaluates precomputed
@@ -176,31 +174,52 @@ pad-train evaluate --help
 A feature extractor is any callable that maps a grayscale image (2-D `uint8`
 array) to a 1-D feature vector whose length does not depend on the image size.
 
-| Name       | Description                                                              |
-|------------|--------------------------------------------------------------------------|
-| `fourier`  | log energy of the magnitude spectrum in radial bands, thirds per dataset |
-| `haralick` | 13 Haralick texture statistics, averaged over the four directions        |
-| `lbp`      | uniform LBP histograms at two scales (8 neighbours at radius 1, 16 at 2) |
+| Name             | Description                                                                   | Scaled |
+|------------------|-------------------------------------------------------------------------------|--------|
+| `fourier`        | log energy of the magnitude spectrum in 30 radial bands                       | no     |
+| `fourier_best`   | `fourier` with the thirds of the spectrum that work best per dataset          | no     |
+| `fourier_worst`  | `fourier` with the thirds of the spectrum that work worst per dataset         | no     |
+| `haralick`       | 13 Haralick texture statistics (mahotas), averaged over the four directions   | yes    |
+| `haralick_best`  | GLCM contrast, correlation and entropy in four directions, 12 values          | yes    |
+| `haralick_worst` | GLCM homogeneity, ASM and energy in four directions, 12 values                | yes    |
+| `lbp`            | uniform LBP histograms at two scales (8 neighbours at radius 1, 16 at 2)      | no     |
+
+`_best` and `_worst` are deliberately good and bad PAD systems for the
+`synthetic` protocol (trained on synthetic attacks, tested on real ones).
 
 ### Fourier settings
 
-`fourier` uses only the magnitude of the spectrum; the phase is discarded. The
-30 bands are grouped into thirds (1 = low, 2 = middle, 3 = high frequencies),
-and each dataset uses its own selection:
+The Fourier extractors use only the magnitude of the spectrum; the phase is
+discarded. `fourier` uses all 30 bands. For `fourier_best` and `fourier_worst`
+the bands are grouped into thirds (1 = low, 2 = middle, 3 = high frequencies),
+and each dataset uses the thirds that give the lowest and the highest ACER when
+trained on synthetic attacks (`synthetic` protocol, mean over `AE_Res` and
+`VAE`):
 
-| Dataset | `fourier_thirds` | Bands |
-|---------|------------------|-------|
-| PLUS    | `(1, 2, 3)`      | 0–29  |
-| IDIAP   | `(1, 2)`         | 0–19  |
-| SCUT    | `(1,)`           | 0–9   |
+| Dataset | `fourier_best_thirds` | ACER   | `fourier_worst_thirds` | ACER   |
+|---------|-----------------------|--------|------------------------|--------|
+| PLUS    | `(1, 2)`, bands 0–19  | 43.4 % | `(2,)`, bands 10–19    | 51.2 % |
+| IDIAP   | `(1, 2)`, bands 0–19  | 0.2 %  | `(2, 3)`, bands 10–29  | 49.6 % |
+| SCUT    | `(1,)`, bands 0–9     | 3.6 %  | `(3,)`, bands 20–29    | 50.0 % |
 
-`evaluate()` and the command line apply these automatically. To change them,
-edit `fourier_thirds` in `_default_datasets()` in
+The high frequencies carry the generator fingerprint: with them, a PAD system
+trained on synthetic attacks separates synthetic from real images and lets real
+attacks through. To change the thirds, edit `_default_datasets()` in
 [`src/pad_train/config.py`](src/pad_train/config.py), or override them at run time:
 
 ```python
-pad_train.settings.datasets["SCUT"].fourier_thirds = (1, 2)
+pad_train.settings.datasets["SCUT"].fourier_best_thirds = (1, 2)
 ```
+
+### Haralick settings
+
+`haralick` computes the 13 classic Haralick statistics with mahotas.
+`haralick_best` and `haralick_worst` compute three GLCM properties each with
+scikit-image (distance 1, the four directions kept separately). The two sets
+come from the Imaging Systems proseminar, where they were found to work well
+and badly for replacing real attacks by synthetic ones; they are the same for
+every dataset. `energy` is the square root of `ASM`, so `haralick_worst`
+carries some redundancy on purpose.
 
 ### Adding an extractor
 
@@ -222,6 +241,9 @@ pad_train.register_extractor("fourier_low", pad_train.make_fourier_extractor(ban
 
 pad_train.evaluate(extractors=["fourier", "fourier_low", "mean_std"])
 ```
+
+An extractor whose features differ by orders of magnitude can ask for
+standardisation with `mean_std.requires_scaling = True`.
 
 ## Additional synthetic sources
 
@@ -298,7 +320,7 @@ on code by Chumakov, Demir and Waclawek.
 The datasets used by this package are provided by **Andreas Uhl** (Department
 of Artificial Intelligence and Human Interfaces, University of Salzburg): the
 bona fide and presentation attack samples of PLUS, IDIAP and SCUT, the
-diffusion-based synthetic samples, and the GAN-based synthetic samples with the
-PROTECT database from the master thesis on CycleGAN and its derivatives. The evaluation protocol follows the
+diffusion-based synthetic samples, and the GAN-based synthetic samples from the
+master thesis on CycleGAN and its derivatives. The evaluation protocol follows the
 tasks he set in his courses on image processing and multimedia security. Thank
 you for making the data and the topic available.

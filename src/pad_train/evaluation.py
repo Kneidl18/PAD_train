@@ -158,9 +158,14 @@ def evaluate_dataset(
     n_folds: int = 5,
     random_state: int = 42,
     workers: int = 1,
-    scale_features: bool = False,
+    scale_features: bool | None = None,
 ) -> pd.DataFrame:
     """Extract features from ``data`` and cross-validate, see :func:`cross_validate`."""
+    scale = (
+        scale_features
+        if scale_features is not None
+        else getattr(extractor, "requires_scaling", False)
+    )
     return cross_validate(
         real=extract_features(data.real, extractor, workers),
         real_subjects=data.real_subjects,
@@ -172,7 +177,7 @@ def evaluate_dataset(
         balance_synthetic=balance_synthetic,
         n_folds=n_folds,
         random_state=random_state,
-        scale_features=scale_features,
+        scale_features=scale,
     )
 
 
@@ -196,7 +201,7 @@ def evaluate(
         extractors: Feature extractors, given by registered name or as a
             callable (which is then listed under its ``__name__``). Named
             extractors use their per-dataset settings from the configuration,
-            e.g. ``fourier`` uses :attr:`DatasetConfig.fourier_thirds`.
+            e.g. ``fourier_best`` uses :attr:`DatasetConfig.fourier_best_thirds`.
         synthetic: Names of the synthetic sources to train on. ``None`` uses
             all configured ones.
         protocols: Protocols to run, a subset of :data:`PROTOCOLS`.
@@ -211,7 +216,8 @@ def evaluate(
             The results do not depend on it.
         scale_features: Standardise the features per fold before the k-NN,
             see :func:`cross_validate`. ``None`` uses
-            :attr:`Settings.scale_features`.
+            :attr:`Settings.scale_features` (which defers to the extractor's
+            ``requires_scaling`` flag).
 
     Returns:
         A :class:`pandas.DataFrame` with the columns ``dataset``, ``extractor``,
@@ -220,8 +226,7 @@ def evaluate(
         are fractions in ``[0, 1]``.
     """
     config = config or settings
-    if scale_features is None:
-        scale_features = config.scale_features
+    scale = config.scale_features if scale_features is None else scale_features
     needs_synthetic = "synthetic" in protocols
 
     frames: list[pd.DataFrame] = []
@@ -230,7 +235,7 @@ def evaluate(
         data = load_data(dataset, synthetic if needs_synthetic else (), download, config, workers)
         k = n_neighbors if n_neighbors is not None else layout.n_neighbors
         for item in extractors:
-            # Named extractors may carry per-dataset settings (e.g. the Fourier thirds).
+            # Named extractors may carry per-dataset settings (e.g. the best Fourier thirds).
             if isinstance(item, str):
                 name, extractor = item, get_extractor(item, layout)
             else:
@@ -244,7 +249,7 @@ def evaluate(
                 config.n_folds,
                 config.random_state,
                 workers,
-                scale_features,
+                scale,
             )
             frames.append(frame.assign(dataset=dataset, extractor=name))
 
