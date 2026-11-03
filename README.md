@@ -27,12 +27,12 @@ the same time. Only type (1) samples that have a type (2) counterpart are used
 | `synthetic` | (1) vs. (3)                    | (1) vs. (2)          |
 
 The classifier is a k-nearest-neighbour classifier on top of an exchangeable
-feature extractor. By default it works on the raw feature vectors; with
-`scale_features=True` (argument of `evaluate()`, `settings.scale_features`, or
-`--scale-features` on the command line) a `StandardScaler` fitted on the
-training samples of each fold standardises the features first. This matters
-for extractors whose features differ by orders of magnitude, such as
-`haralick`, and is off by default so that earlier results stay reproducible.
+feature extractor. Extractors with `requires_scaling = True` (such as
+`haralick_mahotas` and the GLCM extractors) are automatically standardised
+per fold; for others, features remain unscaled so earlier results stay reproducible.
+Standardisation can also be explicitly forced or disabled via `scale_features`
+(argument of `evaluate()`, `settings.scale_features`, or `--scale-features` /
+`--no-scale-features` on the command line).
 The reported metrics follow ISO/IEC 30107-3:
 
 - **APCER** – share of attacks classified as bona fide
@@ -130,7 +130,7 @@ Fetching happens in one of two ways:
 ```python
 import pad_train
 
-results = pad_train.evaluate(extractors=["fourier", "haralick"])
+results = pad_train.evaluate(extractors=["fourier", "haralick_mahotas"])
 print(results)
 ```
 
@@ -167,7 +167,7 @@ feature matrices.
 The same from the command line:
 
 ```bash
-pad-train evaluate --datasets PLUS IDIAP --extractors fourier haralick --output results.csv
+pad-train evaluate --datasets PLUS IDIAP --extractors fourier haralick_mahotas --output results.csv
 pad-train evaluate --help
 ```
 
@@ -176,11 +176,13 @@ pad-train evaluate --help
 A feature extractor is any callable that maps a grayscale image (2-D `uint8`
 array) to a 1-D feature vector whose length does not depend on the image size.
 
-| Name       | Description                                                              |
-|------------|--------------------------------------------------------------------------|
-| `fourier`  | log energy of the magnitude spectrum in radial bands, thirds per dataset |
-| `haralick` | 13 Haralick texture statistics, averaged over the four directions        |
-| `lbp`      | uniform LBP histograms at two scales (8 neighbours at radius 1, 16 at 2) |
+| Name                        | Description                                                              |
+|-----------------------------|--------------------------------------------------------------------------|
+| `fourier`                   | log energy of the magnitude spectrum in radial bands, thirds per dataset |
+| `haralick_mahotas`          | 13 Haralick texture statistics, averaged over 4 directions via Mahotas   |
+| `haralick_3_best_features`  | Top 3 separating GLCM properties (contrast, correlation, entropy)        |
+| `haralick_3_worst_features` | Bottom 3 separating GLCM properties (homogeneity, ASM, energy)           |
+| `lbp`                       | uniform LBP histograms at two scales (8 neighbours at radius 1, 16 at 2) |
 
 ### Fourier settings
 

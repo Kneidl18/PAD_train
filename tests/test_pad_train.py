@@ -10,7 +10,14 @@ from sklearn.preprocessing import StandardScaler
 import pad_train
 from pad_train import Settings
 from pad_train.evaluation import _knn_predict
-from pad_train.features import fourier_features, haralick_features, lbp_features, thirds_to_bands
+from pad_train.features import (
+    fourier_features,
+    haralick_3_best_features,
+    haralick_3_worst_features,
+    haralick_mahotas_features,
+    lbp_features,
+    thirds_to_bands,
+)
 
 from .conftest import N_SUBJECTS, SAMPLES_PER_SUBJECT
 
@@ -30,8 +37,12 @@ def test_extractors_are_size_independent(shape: tuple[int, int]) -> None:
     assert fourier_features(image).shape == (30,)
     assert fourier_features(image, bands=range(10)).shape == (10,)
     assert np.isclose(np.linalg.norm(fourier_features(image)), 1.0)
-    assert haralick_features(image).shape == (13,)
-    assert np.isfinite(haralick_features(image)).all()
+    assert haralick_mahotas_features(image).shape == (13,)
+    assert np.isfinite(haralick_mahotas_features(image)).all()
+    assert haralick_3_best_features(image).shape == (12,)
+    assert np.isfinite(haralick_3_best_features(image)).all()
+    assert haralick_3_worst_features(image).shape == (12,)
+    assert np.isfinite(haralick_3_worst_features(image)).all()
     lbp = lbp_features(image)
     assert lbp.shape == (28,)
     # One normalised histogram per scale: 10 bins for 8 neighbours, 18 bins for 16.
@@ -67,7 +78,13 @@ def test_fourier_thirds() -> None:
 
 
 def test_registry() -> None:
-    assert {"fourier", "haralick", "lbp"} <= set(pad_train.available_extractors())
+    assert {
+        "fourier",
+        "haralick_mahotas",
+        "haralick_3_best_features",
+        "haralick_3_worst_features",
+        "lbp",
+    } <= set(pad_train.available_extractors())
     with pytest.raises(KeyError, match="Unknown feature extractor"):
         pad_train.get_extractor("does-not-exist")
 
@@ -89,7 +106,7 @@ def test_load_data_without_download_raises(config: Settings) -> None:
 
 
 def test_evaluate(config: Settings) -> None:
-    results = pad_train.evaluate(extractors=["fourier", "haralick"], config=config)
+    results = pad_train.evaluate(extractors=["fourier", "haralick_mahotas"], config=config)
     assert list(results.columns) == [
         "dataset", "extractor", "protocol", "train_attack", "APCER", "BPCER", "ACER",
     ]  # fmt: skip
@@ -103,8 +120,10 @@ def test_evaluate(config: Settings) -> None:
 
 
 def test_workers_do_not_change_results(config: Settings) -> None:
-    serial = pad_train.evaluate(extractors=["fourier", "haralick"], config=config)
-    parallel = pad_train.evaluate(extractors=["fourier", "haralick"], config=config, workers=4)
+    serial = pad_train.evaluate(extractors=["fourier", "haralick_mahotas"], config=config)
+    parallel = pad_train.evaluate(
+        extractors=["fourier", "haralick_mahotas"], config=config, workers=4
+    )
     pd.testing.assert_frame_equal(serial, parallel)
 
 
@@ -154,14 +173,27 @@ def test_knn_scaler_is_fitted_on_training_rows_only(monkeypatch: pytest.MonkeyPa
 def test_evaluate_scale_features(config: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
     seen = _record_scaler_fits(monkeypatch)
     pad_train.evaluate(protocols=["baseline"], config=config)
-    assert not seen  # off by default
+    assert not seen  # off by default for fourier
+    # Extractor with requires_scaling triggers scaling automatically
+    pad_train.evaluate(
+        extractors=["haralick_3_best_features"], protocols=["baseline"], config=config
+    )
+    assert len(seen) == config.n_folds
+    # Explicit scale_features=False suppresses it
+    pad_train.evaluate(
+        extractors=["haralick_3_best_features"],
+        protocols=["baseline"],
+        config=config,
+        scale_features=False,
+    )
+    assert len(seen) == config.n_folds
     pad_train.evaluate(protocols=["baseline"], config=config, scale_features=True)
     # One scaler per fold, fitted on the training share of the samples only.
     n_train = 2 * N_SUBJECTS * SAMPLES_PER_SUBJECT * (config.n_folds - 1) // config.n_folds
-    assert [len(x) for x in seen] == [n_train] * config.n_folds
+    assert [len(x) for x in seen] == [n_train] * (2 * config.n_folds)
     config.scale_features = True
     pad_train.evaluate(protocols=["baseline"], config=config)
-    assert len(seen) == 2 * config.n_folds
+    assert len(seen) == 3 * config.n_folds
 
 
 def test_evaluate_accepts_custom_extractor(config: Settings) -> None:
