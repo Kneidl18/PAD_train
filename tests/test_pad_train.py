@@ -12,9 +12,9 @@ from pad_train import Settings
 from pad_train.evaluation import _knn_predict
 from pad_train.features import (
     fourier_features,
-    haralick_3_best_features,
-    haralick_3_worst_features,
-    haralick_mahotas_features,
+    haralick_best_features,
+    haralick_features,
+    haralick_worst_features,
     lbp_features,
     thirds_to_bands,
 )
@@ -37,12 +37,12 @@ def test_extractors_are_size_independent(shape: tuple[int, int]) -> None:
     assert fourier_features(image).shape == (30,)
     assert fourier_features(image, bands=range(10)).shape == (10,)
     assert np.isclose(np.linalg.norm(fourier_features(image)), 1.0)
-    assert haralick_mahotas_features(image).shape == (13,)
-    assert np.isfinite(haralick_mahotas_features(image)).all()
-    assert haralick_3_best_features(image).shape == (12,)
-    assert np.isfinite(haralick_3_best_features(image)).all()
-    assert haralick_3_worst_features(image).shape == (12,)
-    assert np.isfinite(haralick_3_worst_features(image)).all()
+    assert haralick_features(image).shape == (13,)
+    assert np.isfinite(haralick_features(image)).all()
+    assert haralick_best_features(image).shape == (12,)
+    assert np.isfinite(haralick_best_features(image)).all()
+    assert haralick_worst_features(image).shape == (12,)
+    assert np.isfinite(haralick_worst_features(image)).all()
     lbp = lbp_features(image)
     assert lbp.shape == (28,)
     # One normalised histogram per scale: 10 bins for 8 neighbours, 18 bins for 16.
@@ -67,22 +67,29 @@ def test_fourier_thirds() -> None:
     image = np.random.default_rng(0).integers(0, 256, size=(32, 48)).astype(np.uint8)
     full = fourier_features(image)
     datasets = pad_train.Settings().datasets
-    expected = {"PLUS": full, "IDIAP": full[:20], "SCUT": full[:10]}
-    for name, features in expected.items():
-        extractor = pad_train.get_extractor("fourier", datasets[name])
-        assert np.array_equal(extractor(image), features)
-    # A changed setting is picked up, and no dataset means all bands.
-    datasets["SCUT"].fourier_thirds = (3,)
-    assert np.array_equal(pad_train.get_extractor("fourier", datasets["SCUT"])(image), full[20:])
+    # ``fourier`` uses all bands, with or without a dataset.
     assert np.array_equal(pad_train.get_extractor("fourier")(image), full)
+    for layout in datasets.values():
+        assert np.array_equal(pad_train.get_extractor("fourier", layout)(image), full)
+    # The best and worst variants follow the (changeable) thirds of the dataset.
+    datasets["SCUT"].fourier_best_thirds = (1,)
+    datasets["SCUT"].fourier_worst_thirds = (3,)
+    best = pad_train.get_extractor("fourier_best", datasets["SCUT"])
+    assert np.array_equal(best(image), full[:10])
+    worst = pad_train.get_extractor("fourier_worst", datasets["SCUT"])
+    assert np.array_equal(worst(image), full[20:])
+    with pytest.raises(ValueError, match="per dataset"):
+        pad_train.get_extractor("fourier_best")(image)
 
 
 def test_registry() -> None:
     assert {
         "fourier",
-        "haralick_mahotas",
-        "haralick_3_best_features",
-        "haralick_3_worst_features",
+        "fourier_best",
+        "fourier_worst",
+        "haralick",
+        "haralick_best",
+        "haralick_worst",
         "lbp",
     } <= set(pad_train.available_extractors())
     with pytest.raises(KeyError, match="Unknown feature extractor"):
@@ -106,7 +113,7 @@ def test_load_data_without_download_raises(config: Settings) -> None:
 
 
 def test_evaluate(config: Settings) -> None:
-    results = pad_train.evaluate(extractors=["fourier", "haralick_mahotas"], config=config)
+    results = pad_train.evaluate(extractors=["fourier", "haralick"], config=config)
     assert list(results.columns) == [
         "dataset", "extractor", "protocol", "train_attack", "APCER", "BPCER", "ACER",
     ]  # fmt: skip
@@ -120,10 +127,8 @@ def test_evaluate(config: Settings) -> None:
 
 
 def test_workers_do_not_change_results(config: Settings) -> None:
-    serial = pad_train.evaluate(extractors=["fourier", "haralick_mahotas"], config=config)
-    parallel = pad_train.evaluate(
-        extractors=["fourier", "haralick_mahotas"], config=config, workers=4
-    )
+    serial = pad_train.evaluate(extractors=["fourier", "haralick"], config=config)
+    parallel = pad_train.evaluate(extractors=["fourier", "haralick"], config=config, workers=4)
     pd.testing.assert_frame_equal(serial, parallel)
 
 
@@ -175,13 +180,11 @@ def test_evaluate_scale_features(config: Settings, monkeypatch: pytest.MonkeyPat
     pad_train.evaluate(protocols=["baseline"], config=config)
     assert not seen  # off by default for fourier
     # Extractor with requires_scaling triggers scaling automatically
-    pad_train.evaluate(
-        extractors=["haralick_3_best_features"], protocols=["baseline"], config=config
-    )
+    pad_train.evaluate(extractors=["haralick_best"], protocols=["baseline"], config=config)
     assert len(seen) == config.n_folds
     # Explicit scale_features=False suppresses it
     pad_train.evaluate(
-        extractors=["haralick_3_best_features"],
+        extractors=["haralick_best"],
         protocols=["baseline"],
         config=config,
         scale_features=False,

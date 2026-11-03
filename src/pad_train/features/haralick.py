@@ -16,8 +16,8 @@ from pad_train.features.registry import register_extractor
 _ANGLES_4: tuple[float, ...] = (0.0, np.pi / 4, np.pi / 2, 3 * np.pi / 4)
 
 
-@register_extractor("haralick_mahotas")
-def haralick_mahotas_features(image: Image) -> NDArray[np.float64]:
+@register_extractor("haralick")
+def haralick_features(image: Image) -> NDArray[np.float64]:
     """Extract the Haralick texture features of an image using mahotas.
 
     The 13 classic Haralick statistics (contrast, correlation, entropy, ...)
@@ -34,7 +34,7 @@ def haralick_mahotas_features(image: Image) -> NDArray[np.float64]:
     return features.ravel()
 
 
-haralick_mahotas_features.requires_scaling = True  # type: ignore[attr-defined]
+haralick_features.requires_scaling = True  # type: ignore[attr-defined]
 
 
 def _extract_glcm_properties(
@@ -63,8 +63,8 @@ def _extract_glcm_properties(
     return np.concatenate(feature_list).astype(np.float64)
 
 
-@register_extractor("haralick_3_best_features")
-def haralick_3_best_features(image: Image) -> NDArray[np.float64]:
+@register_extractor("haralick_best")
+def haralick_best_features(image: Image) -> NDArray[np.float64]:
     """Top 3 separating GLCM texture features across 4 directions (d=1).
 
     Computes contrast, correlation, and entropy along angles 0°, 45°, 90°, and 135°,
@@ -73,11 +73,11 @@ def haralick_3_best_features(image: Image) -> NDArray[np.float64]:
     return _extract_glcm_properties(image, properties=("contrast", "correlation", "entropy"))
 
 
-haralick_3_best_features.requires_scaling = True  # type: ignore[attr-defined]
+haralick_best_features.requires_scaling = True  # type: ignore[attr-defined]
 
 
-@register_extractor("haralick_3_worst_features")
-def haralick_3_worst_features(image: Image) -> NDArray[np.float64]:
+@register_extractor("haralick_worst")
+def haralick_worst_features(image: Image) -> NDArray[np.float64]:
     """Bottom 3 separating GLCM texture features across 4 directions (d=1).
 
     Computes homogeneity, ASM, and energy along angles 0°, 45°, 90°, and 135°,
@@ -86,4 +86,4 @@ def haralick_3_worst_features(image: Image) -> NDArray[np.float64]:
     return _extract_glcm_properties(image, properties=("homogeneity", "ASM", "energy"))
 
 
-haralick_3_worst_features.requires_scaling = True  # type: ignore[attr-defined]
+haralick_worst_features.requires_scaling = True  # type: ignore[attr-defined]

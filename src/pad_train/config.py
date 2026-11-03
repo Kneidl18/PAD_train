@@ -78,9 +78,11 @@ class DatasetConfig:
         pair_by_filename: Real and spoof captures of the same finger share a
             file name, so bona fide samples can be matched to their attack
             sample one-to-one. If ``False`` the matching is done per subject.
-        fourier_thirds: Thirds of the Fourier magnitude spectrum used by the
-            ``fourier`` extractor for this dataset: 1 = low, 2 = middle,
-            3 = high frequencies. Change them in :func:`_default_datasets`.
+        fourier_best_thirds: Thirds of the Fourier magnitude spectrum used by
+            the ``fourier_best`` extractor for this dataset: 1 = low,
+            2 = middle, 3 = high frequencies. Change them in
+            :func:`_default_datasets`.
+        fourier_worst_thirds: The same for the ``fourier_worst`` extractor.
         real_source: Source of the bona fide and real attack samples of this
             dataset. ``None`` uses :attr:`Settings.real_source`.
         kind_dirs: Names of the bona fide and the real attack folder.
@@ -92,7 +94,8 @@ class DatasetConfig:
     subsets: tuple[str, ...] = ("",)
     n_neighbors: int = 1
     pair_by_filename: bool = False
-    fourier_thirds: tuple[int, ...] = (1, 2, 3)
+    fourier_best_thirds: tuple[int, ...] = (1, 2, 3)
+    fourier_worst_thirds: tuple[int, ...] = (1, 2, 3)
     real_source: DataSource | None = None
     kind_dirs: tuple[str, str] = ("real", "spoof")
 
@@ -102,14 +105,14 @@ def _default_data_root() -> Path:
     return Path(os.environ.get(DATA_ROOT_ENV_VAR, "data")).expanduser()
 
 
-#: Archive with the samples of four GANs (and the PROTECT hand vein database),
-#: from the Salzburg master thesis on CycleGAN and its derivatives.
+#: Archive with the samples of four GANs, from the Salzburg master thesis on
+#: CycleGAN and its derivatives.
 PREPARED_URL: str = "https://www.cosy.sbg.ac.at/~uhl/Data_prepared.zip"
 
 #: Variant of the thesis used per database, see ``Description.pdf`` in the
 #: archive: the variant without mixed fingers and without extra training
 #: images, or, for SCUT, where that one is not included, with extra images.
-PREPARED_VARIANTS: dict[str, str] = {"PLUS": "001", "IDIAP": "009", "SCUT": "007", "PROTECT": "010"}
+PREPARED_VARIANTS: dict[str, str] = {"PLUS": "001", "IDIAP": "009", "SCUT": "007"}
 
 #: GAN source name -> its folder name in the archive (spelled as there).
 PREPARED_GANS: dict[str, str] = {
@@ -127,12 +130,11 @@ def _prepared_folder(database: str, gan_dir: str) -> str:
 
 def _prepared_source(name: str = "prepared", folders: dict[str, str] | None = None) -> DataSource:
     """Return a source backed by :data:`PREPARED_URL`; all of them share one folder."""
-    samples = [
+    members = tuple(
         _prepared_folder(db, gan_dir)
         for db in PREPARED_VARIANTS
         for gan_dir in PREPARED_GANS.values()
-    ]
-    members = (*samples, "PROTECT/genuine", "PROTECT/spoofed")
+    )
     # The SCUT samples of all four GANs are stored turned clockwise
     # (288 x 640 instead of the 640 x 288 of the real SCUT images).
     rotate = {_prepared_folder("SCUT", gan_dir): 1 for gan_dir in PREPARED_GANS.values()}
@@ -170,7 +172,12 @@ def _default_synthetic_sources() -> dict[str, DataSource]:
 
 
 def _default_datasets() -> dict[str, DatasetConfig]:
-    """Return the layout of the four supported datasets."""
+    """Return the layout of the three supported datasets.
+
+    The Fourier thirds were chosen from all seven combinations by the mean ACER
+    of the ``synthetic`` protocol over ``AE_Res`` and ``VAE``, ties broken by the
+    baseline ACER (IDIAP: low alone ties with low + middle).
+    """
     return {
         "PLUS": DatasetConfig(
             name="PLUS",
@@ -178,7 +185,8 @@ def _default_datasets() -> dict[str, DatasetConfig]:
             synthetic_dir="PLUS_matched",
             n_neighbors=6,
             pair_by_filename=True,
-            fourier_thirds=(1, 2, 3),
+            fourier_best_thirds=(1, 2),
+            fourier_worst_thirds=(2,),
         ),
         "IDIAP": DatasetConfig(
             name="IDIAP",
@@ -187,23 +195,16 @@ def _default_datasets() -> dict[str, DatasetConfig]:
             # ``test`` is unlabelled in the archive and therefore unusable.
             subsets=("train", "dev"),
             pair_by_filename=True,
-            fourier_thirds=(1, 2),
+            fourier_best_thirds=(1, 2),
+            fourier_worst_thirds=(2, 3),
         ),
         "SCUT": DatasetConfig(
             name="SCUT",
             real_dir="SCUT/full",
             synthetic_dir="SCUT",
             subsets=("train", "dev", "test"),
-            fourier_thirds=(1,),
-        ),
-        # Hand vein images (dorsal, 384x384) of 10 subjects, shipped with the
-        # GAN samples. Bona fide and attack captures share the subject folder.
-        "PROTECT": DatasetConfig(
-            name="PROTECT",
-            real_dir="PROTECT",
-            synthetic_dir="PROTECT",
-            real_source=_prepared_source(),
-            kind_dirs=("genuine", "spoofed"),
+            fourier_best_thirds=(1,),
+            fourier_worst_thirds=(3,),
         ),
     }
 
