@@ -38,8 +38,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument(
         "--scale-features",
-        action="store_true",
-        help="standardise the features on each training fold before the k-NN",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="standardise features per fold before k-NN (default: per-extractor)",
     )
     run.add_argument("--output", type=Path, help="also write the table to this CSV file")
     return parser
