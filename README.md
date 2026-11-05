@@ -81,13 +81,22 @@ extraction:
 **`Data_prepared`** holds the samples of the master thesis "Deep Learning
 Framework: CycleGAN's and their derivatives in image synthesis for the
 evaluation of biometric systems" (University of Salzburg). Of its many variants
-the package uses, per database, the one without mixed fingers and without
-extra training images (PLUS 001, IDIAP 009; SCUT 007, which adds
-training images, since the plain one is not included), with the synthetic
-samples of all five folds at the original image size (`all_rs/reference`). The
+the package uses one per GAN and database (see `Description.pdf` in the
+archive), each with the synthetic samples of all five folds at the original
+image size (`all_rs/<style>`):
+
+| Database | `CycleGAN`      | `DistanceGAN`   | `DRIT`          | `StarGANv2`     |
+|----------|-----------------|-----------------|-----------------|-----------------|
+| PLUS     | 003 `reference` | 001 `reference` | 003 `reference` | 001 `reference` |
+| IDIAP    | 009 `reference` | 009 `reference` | 009 `reference` | 009 `latent`    |
+| SCUT     | 008 `reference` | 008 `reference` | 007 `reference` | 007 `reference` |
+
+The style is `reference` except for StarGANv2, which also offers `latent`. The
 archive also holds the PROTECT hand vein database, which the package does not
 use. The variants are set in
 `PREPARED_VARIANTS` in [`src/pad_train/config.py`](src/pad_train/config.py).
+When they change, the missing folders are downloaded into the existing
+`Data_prepared` on the next run; folders no longer used stay on disk.
 
 **Slow connections:** the archive is 7.3 GB, but only the parts the package
 uses (about 600 MB) are downloaded: its table of contents is read first, then

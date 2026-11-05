@@ -134,6 +134,28 @@ def test_only_the_needed_members_are_downloaded(server: tuple[str, Path], tmp_pa
     assert fetched < 1_000_000
 
 
+def test_missing_members_are_added_to_an_existing_source(
+    server: tuple[str, Path], tmp_path: Path
+) -> None:
+    url, served = server
+    _archive(served / "data.zip", {"A/old/1.bin": b"one", "A/new/2.bin": b"two"})
+    config = Settings(data_root=tmp_path)
+    source = DataSource("src", Path("src"), url=f"{url}/data.zip", members=("A/old",))
+    data_module.ensure_source(source, config=config)
+    (tmp_path / "src/A/old/1.bin").write_bytes(b"kept")  # proves it is not extracted again
+
+    # The package now uses a further folder of the same archive.
+    source.members = ("A/old", "A/new")
+    data_module.ensure_source(source, config=config)
+
+    assert (tmp_path / "src/A/old/1.bin").read_bytes() == b"kept"
+    assert (tmp_path / "src/A/new/2.bin").read_bytes() == b"two"
+    assert not list(tmp_path.glob("*.zip*")) and not list(tmp_path.glob(".src-*"))
+    with pytest.raises(FileNotFoundError, match="incomplete"):
+        source.members = ("A/old", "A/new", "A/later")
+        data_module.ensure_source(source, download=False, config=config)
+
+
 def test_servers_without_byte_ranges_fall_back_to_the_whole_archive(tmp_path: Path) -> None:
     archive = tmp_path / "data.zip"
     _archive(archive, {"A/1.bin": b"one"})
