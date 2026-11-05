@@ -321,8 +321,8 @@ def _extract(
     Extraction happens in a temporary sibling directory which is moved into
     place at the end, so an existing ``target`` is always complete. With
     ``members`` only those folders (relative to the archive's top level) are
-    extracted; ``rotate`` turns the images of some folders, see
-    :attr:`DataSource.rotate`.
+    extracted; if ``target`` exists already, each of them is moved into it.
+    ``rotate`` turns the images of some folders, see :attr:`DataSource.rotate`.
     """
     logger.info("Extracting %s", archive.name)
     with tempfile.TemporaryDirectory(dir=target.parent, prefix=f".{target.name}-") as tmp:
@@ -342,13 +342,29 @@ def _extract(
         payload = staging / archive_root if archive_root else staging
         if not payload.is_dir():
             raise FileNotFoundError(f"'{archive_root}' not found in {archive.name}")
-        shutil.move(payload, target)
+        if not target.is_dir():
+            shutil.move(payload, target)
+            return
+        # One rename per folder (same file system), so a folder is complete once it exists.
+        for member in members or ():
+            relative = _member_path(member, archive_root)
+            (target / relative).parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(payload / relative, target / relative)
+
+
+def _member_path(member: str, archive_root: str | None) -> Path:
+    """Return the path of the archive folder ``member`` below the extracted source."""
+    return Path(member).relative_to(archive_root) if archive_root else Path(member)
 
 
 def ensure_source(
     source: DataSource, download: bool = True, config: Settings | None = None
 ) -> Path:
     """Return the directory of ``source``, fetching it first if it is missing.
+
+    If the directory exists but some of the source's ``members`` are missing
+    in it (e.g. after the package switched to other folders of an archive),
+    only those are fetched.
 
     Args:
         source: The data source to locate.
@@ -363,23 +379,26 @@ def ensure_source(
     """
     config = config or settings
     path = config.resolve(source)
+    members = source.members
     if path.is_dir():
-        return path
+        members = tuple(
+            m for m in members or () if not (path / _member_path(m, source.archive_root)).is_dir()
+        )
+        if not members:
+            return path
     if not download or source.url is None:
         raise FileNotFoundError(
-            f"Data source '{source.name}' not found at {path}. "
+            f"Data source '{source.name}' not found or incomplete at {path}. "
             "Run `pad-train download` or call load_data(download=True)."
         )
 
     path.parent.mkdir(parents=True, exist_ok=True)
     archive = path.parent / Path(source.url).name
     if not archive.is_file():
-        partly = source.members is not None and _download_members(
-            source.url, archive, source.members
-        )
+        partly = members is not None and _download_members(source.url, archive, members)
         if not partly:
             _download(source.url, archive)
-    _extract(archive, path, source.archive_root, source.members, source.rotate)
+    _extract(archive, path, source.archive_root, members, source.rotate)
     archive.unlink()
     return path
 

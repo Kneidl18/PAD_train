@@ -109,11 +109,6 @@ def _default_data_root() -> Path:
 #: CycleGAN and its derivatives.
 PREPARED_URL: str = "https://www.cosy.sbg.ac.at/~uhl/Data_prepared.zip"
 
-#: Variant of the thesis used per database, see ``Description.pdf`` in the
-#: archive: the variant without mixed fingers and without extra training
-#: images, or, for SCUT, where that one is not included, with extra images.
-PREPARED_VARIANTS: dict[str, str] = {"PLUS": "001", "IDIAP": "009", "SCUT": "007"}
-
 #: GAN source name -> its folder name in the archive (spelled as there).
 PREPARED_GANS: dict[str, str] = {
     "CycleGAN": "spoofed_synthethic_cyclegan",
@@ -122,22 +117,31 @@ PREPARED_GANS: dict[str, str] = {
     "StarGANv2": "spoofed_synthethic_stargan-v2",
 }
 
+#: Variant of the thesis used per GAN and database, see ``Description.pdf`` in
+#: the archive, as ``<variant>/<style>``. The style is ``reference`` or, for
+#: StarGANv2 only, ``latent``.
+PREPARED_VARIANTS: dict[str, dict[str, str]] = {
+    "CycleGAN": {"PLUS": "003/reference", "IDIAP": "009/reference", "SCUT": "008/reference"},
+    "DistanceGAN": {"PLUS": "001/reference", "IDIAP": "009/reference", "SCUT": "008/reference"},
+    "DRIT": {"PLUS": "003/reference", "IDIAP": "009/reference", "SCUT": "007/reference"},
+    "StarGANv2": {"PLUS": "001/reference", "IDIAP": "009/latent", "SCUT": "007/reference"},
+}
 
-def _prepared_folder(database: str, gan_dir: str) -> str:
+
+def _prepared_folder(gan: str, database: str) -> str:
     """Return the archive folder with all five folds, resized to the original size."""
-    return f"{database}/{gan_dir}/{PREPARED_VARIANTS[database]}/all_rs/reference"
+    variant, style = PREPARED_VARIANTS[gan][database].split("/")
+    return f"{database}/{PREPARED_GANS[gan]}/{variant}/all_rs/{style}"
 
 
 def _prepared_source(name: str = "prepared", folders: dict[str, str] | None = None) -> DataSource:
     """Return a source backed by :data:`PREPARED_URL`; all of them share one folder."""
     members = tuple(
-        _prepared_folder(db, gan_dir)
-        for db in PREPARED_VARIANTS
-        for gan_dir in PREPARED_GANS.values()
+        _prepared_folder(gan, db) for gan, dbs in PREPARED_VARIANTS.items() for db in dbs
     )
     # The SCUT samples of all four GANs are stored turned clockwise
     # (288 x 640 instead of the 640 x 288 of the real SCUT images).
-    rotate = {_prepared_folder("SCUT", gan_dir): 1 for gan_dir in PREPARED_GANS.values()}
+    rotate = {_prepared_folder(gan, "SCUT"): 1 for gan in PREPARED_VARIANTS}
     return DataSource(
         name=name,
         path=Path("Data_prepared"),
@@ -165,8 +169,8 @@ def _default_synthetic_sources() -> dict[str, DataSource]:
             datasets=diffusion,
         ),
     }
-    for name, gan_dir in PREPARED_GANS.items():
-        folders = {db: _prepared_folder(db, gan_dir) for db in PREPARED_VARIANTS}
+    for name, databases in PREPARED_VARIANTS.items():
+        folders = {db: _prepared_folder(name, db) for db in databases}
         sources[name] = _prepared_source(name, folders)
     return sources
 
